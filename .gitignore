@@ -69,3 +69,11 @@ firebase/functions/lib/
 # Deno cache
 /supabase/.deno_cache/
 /supabase/*.lock
+
+# Firebase options (generated per-project via flutterfire configure)
+lib/firebase_options.dart
+lib/firebase_options_dev.dart
+
+# Generated Dart files (regenerate with: dart run build_runner build)
+*.g.dart
+*.freezed.dart

@@ -1,4 +1,4 @@
-import 'package:apparence_kit/environnements.dart';
+import 'package:apparence_kit/environments.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

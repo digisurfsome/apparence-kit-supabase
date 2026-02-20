@@ -9,10 +9,14 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
 
+/// Firebase Functions region - change this to match your Firebase project's region.
+/// Common regions: 'us-central1', 'europe-west1', 'asia-east1'
+const _kFirebaseRegion = 'us-central1';
+
 final userApiProvider = Provider<UserApi>(
   (ref) => UserApi(
     client: FirebaseFirestore.instance,
-    firebaseFunctions: FirebaseFunctions.instanceFor(region: 'europe-west1'), // TODO get region from environment
+    firebaseFunctions: FirebaseFunctions.instanceFor(region: _kFirebaseRegion),
     storageApi: ref.read(storageApiProvider),
   ),
 );

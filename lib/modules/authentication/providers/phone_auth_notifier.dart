@@ -111,7 +111,7 @@ class PhoneAuthNotifier extends _$PhoneAuthNotifier {
       // on firebase, this is where this error is thrown
       // we can delete this when using Supabase
       state = state.copyWith(linkPhoneToUser: false);
-      return sendOtp(otp);
+      return sendOtp(state.phoneNumber);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,

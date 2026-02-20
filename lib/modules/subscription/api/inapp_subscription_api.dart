@@ -1,5 +1,5 @@
 import 'package:apparence_kit/core/data/models/subscription.dart';
-import 'package:apparence_kit/environnements.dart';
+import 'package:apparence_kit/environments.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';

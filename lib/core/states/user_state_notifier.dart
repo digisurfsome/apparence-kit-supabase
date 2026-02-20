@@ -3,7 +3,7 @@ import 'package:apparence_kit/core/data/models/user.dart';
 import 'package:apparence_kit/core/data/repositories/user_repository.dart';
 import 'package:apparence_kit/core/initializer/onstart_service.dart';
 import 'package:apparence_kit/core/states/models/user_state.dart';
-import 'package:apparence_kit/environnements.dart';
+import 'package:apparence_kit/environments.dart';
 import 'package:apparence_kit/modules/authentication/repositories/authentication_repository.dart';
 import 'package:apparence_kit/modules/notifications/providers/models/device.dart';
 import 'package:apparence_kit/modules/notifications/repositories/device_repository.dart';

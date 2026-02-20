@@ -21,7 +21,7 @@ final localNotifierProvider = Provider<LocalNotifier>((ref) {
   );
 });
 
-const kAppName = 'flutter_base';
+const kAppName = 'ApparenceKit';
 
 final notificationsSettingsProvider = Provider<NotificationSettings>((ref) => defaultNotificationSettings);
 

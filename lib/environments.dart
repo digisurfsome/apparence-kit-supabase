@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-part 'environnements.freezed.dart';
+part 'environments.freezed.dart';
 
 const _kEnvironmentInput = String.fromEnvironment('ENV', defaultValue: 'dev');
 

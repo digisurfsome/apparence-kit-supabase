@@ -14,10 +14,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:logger/logger.dart';
 
+/// Firebase Functions region - change this to match your Firebase project's region.
+const _kFirebaseRegion = 'us-central1';
+
 final authenticationApiProvider = Provider<AuthenticationApi>(
   (ref) => FirebaseAuthenticationApi(
-    FirebaseAuth.instance, 
-    FirebaseFunctions.instanceFor(region: 'europe-west1'),
+    FirebaseAuth.instance,
+    FirebaseFunctions.instanceFor(region: _kFirebaseRegion),
   ),
 );
 

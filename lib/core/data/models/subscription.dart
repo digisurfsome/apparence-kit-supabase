@@ -187,7 +187,8 @@ class RevenueCatProduct implements SubscriptionProduct {
       DurationType.lifetime => Translations.of(
         context,
       ).premium.duration_lifetime,
-      _ => "",
+      DurationType.threeMonth => Translations.of(context).premium.duration_monthly,
+      DurationType.sixMonth => Translations.of(context).premium.duration_monthly,
     };
     return "${revenueCatPackage.storeProduct.priceString} $translatedDuration";
   }
@@ -205,7 +206,8 @@ class RevenueCatProduct implements SubscriptionProduct {
       DurationType.threeMonth => price / 3,
       DurationType.sixMonth => price / 6,
       DurationType.week => (price * 4) / 12,
-      _ => 1,
+      DurationType.month => price,
+      DurationType.lifetime => price,
     };
     final pricePerMonthString = pricePerMonth.toStringAsFixed(2);
     final money = revenueCatPackage.storeProduct.currencyCode;
@@ -228,7 +230,8 @@ class RevenueCatProduct implements SubscriptionProduct {
       DurationType.threeMonth => price * 4,
       DurationType.sixMonth => price * 2,
       DurationType.week => (price * 4) * 12,
-      _ => 1,
+      DurationType.month => price * 12,
+      DurationType.lifetime => price,
     };
     final pricePerMonthString = pricePerMonth.toStringAsFixed(2);
     final money = revenueCatPackage.storeProduct.currencyCode;

@@ -2,7 +2,7 @@ import 'package:apparence_kit/core/data/api/http_client.dart';
 import 'package:apparence_kit/core/data/models/user.dart';
 import 'package:apparence_kit/core/data/repositories/user_repository.dart';
 import 'package:apparence_kit/core/states/user_state_notifier.dart';
-import 'package:apparence_kit/environnements.dart';
+import 'package:apparence_kit/environments.dart';
 import 'package:apparence_kit/modules/authentication/repositories/authentication_repository.dart';
 import 'package:apparence_kit/modules/notifications/repositories/device_repository.dart';
 import 'package:apparence_kit/modules/subscription/repositories/subscription_repository.dart';

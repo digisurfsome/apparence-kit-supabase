@@ -1,7 +1,7 @@
 import 'package:apparence_kit/core/animations/movefade_anim.dart';
 import 'package:apparence_kit/core/data/models/subscription.dart';
 import 'package:apparence_kit/core/theme/extensions/theme_extension.dart';
-import 'package:apparence_kit/environnements.dart';
+import 'package:apparence_kit/environments.dart';
 import 'package:apparence_kit/i18n/translations.g.dart';
 import 'package:apparence_kit/modules/subscription/ui/component/premium_page_factory.dart';
 import 'package:apparence_kit/modules/subscription/ui/premium_page.dart';

@@ -1,5 +1,5 @@
 import 'package:apparence_kit/core/theme/extensions/theme_extension.dart';
-import 'package:apparence_kit/environnements.dart';
+import 'package:apparence_kit/environments.dart';
 import 'package:apparence_kit/i18n/translations.g.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

@@ -7,9 +7,9 @@ class Password {
     if (value.isEmpty) {
       throw const PasswordException("You must provide a password");
     }
-    if (value.length < 5) {
+    if (value.length < 8) {
       throw const PasswordException(
-        "Your password must be at least 5 characters long",
+        "Your password must be at least 8 characters long",
       );
     }
   }

@@ -1,12 +1,19 @@
 ---
-name: Feature request
-about: Suggest a new idea.
-title: ''
-labels: ''
+name: Feature Request
+about: Suggest an idea for this project
+title: "[Feature] "
+labels: enhancement
 assignees: ''
-
 ---
 
-## Proposal
+## Problem
+A clear description of the problem this feature would solve.
 
-*Describe your new feature*
+## Proposed Solution
+Your idea for solving the problem.
+
+## Alternatives Considered
+Any alternative solutions you've considered.
+
+## Additional Context
+Any other context or screenshots.

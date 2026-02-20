@@ -58,7 +58,7 @@ class SubscriptionRepository implements OnStartService {
       _logger.w('''
         Revenuecat seems not to be initialized. 
         👉 Please check that you have setup your account on https://revenuecat.com
-        And that you have added your token in the environment file or variable (see lib/environnements.dart)
+        And that you have added your token in the environment file or variable (see lib/environments.dart)
         or
         👉 Remove completely the subscription module if you don't need it
       ''');
@@ -124,10 +124,7 @@ class SubscriptionRepository implements OnStartService {
   // If you want only have a single premium subscription, you can create a single permission 'premium'
   Future<bool> checkPermission(String permissionToCheck) async {
     final permissions = await _inAppSubscriptionApi.getPermissions();
-    if (permissions.isEmpty) {
-      throw Exception("Permission denied");
-    }
-    return permissions.isNotEmpty;
+    return permissions.contains(permissionToCheck);
   }
 
   /// The purchase method is used to buy a subscription or a product

@@ -9,7 +9,7 @@ import 'package:apparence_kit/core/theme/extensions/theme_extension.dart';
 import 'package:apparence_kit/core/theme/providers/theme_provider.dart';
 import 'package:apparence_kit/core/theme/texts.dart';
 import 'package:apparence_kit/core/theme/universal_theme.dart';
-import 'package:apparence_kit/environnements.dart';
+import 'package:apparence_kit/environments.dart';
 import 'package:apparence_kit/firebase_options_dev.dart' as firebase_dev;
 import 'package:apparence_kit/i18n/translations.g.dart';
 import 'package:apparence_kit/modules/authentication/api/authentication_api.dart';
@@ -232,7 +232,7 @@ class InitializationErrorPage extends StatelessWidget {
             ),
             if (kDebugMode) 
               Text(
-                "developper mode error: $error",
+                "developer mode error: $error",
                 style: context.textTheme.bodyLarge?.copyWith(
                   color: context.colors.error,
                 ),

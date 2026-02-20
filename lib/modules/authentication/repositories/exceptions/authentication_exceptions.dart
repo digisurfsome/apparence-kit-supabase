@@ -1,6 +1,6 @@
 import 'package:apparence_kit/core/data/api/base_api_exceptions.dart';
 
-class SignupException {
+class SignupException implements Exception {
   final int? code;
   final String? message;
 
@@ -22,7 +22,7 @@ class SignupException {
   }
 }
 
-class SigninException {
+class SigninException implements Exception {
   final int? code;
   final String? message;
 
@@ -44,7 +44,7 @@ class SigninException {
   }
 }
 
-class RecoverPasswordException {
+class RecoverPasswordException implements Exception {
   final int? code;
   final String? message;
 
@@ -62,7 +62,7 @@ class RecoverPasswordException {
 
   @override
   String toString() {
-    return 'SigninException(code: $code, message: $message)';
+    return 'RecoverPasswordException(code: $code, message: $message)';
   }
 }
 

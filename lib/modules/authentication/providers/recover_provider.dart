@@ -32,11 +32,11 @@ class RecoverStateNotifier extends _$RecoverStateNotifier {
       state.email.validate();
       state = RecoverState.sending(email: state.email);
       await authRepository.recoverPassword(state.email.value);
-      // lets fake a delay to prevent spamming the signup button
+      // lets fake a delay to prevent spamming the recover button
       await Future.delayed(const Duration(milliseconds: 1500));
       state = RecoverState.sent(email: state.email);
     } catch (e, trace) {
-      debugPrint("Error while signing up: $e, $trace");
+      debugPrint("Error while recovering password: $e, $trace");
       state = RecoverState(email: state.email);
       rethrow;
     }

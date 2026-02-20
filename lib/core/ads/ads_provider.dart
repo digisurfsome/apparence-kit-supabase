@@ -1,7 +1,7 @@
 // ignore_for_file: unused_element, unused_element_parameter
 
 import 'package:apparence_kit/core/ads/ads_state.dart';
-import 'package:apparence_kit/environnements.dart';
+import 'package:apparence_kit/environments.dart';
 // import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:logger/logger.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';

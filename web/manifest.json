@@ -1,6 +1,6 @@
 {
-    "name": "apparencekit_pro",
-    "short_name": "apparencekit_pro",
+    "name": "ApparenceKit",
+    "short_name": "ApparenceKit",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

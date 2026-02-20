@@ -1,6 +1,6 @@
 // coverage:ignore-file to ignore the whole file.
 import 'package:apparence_kit/core/shared_preferences/shared_preferences.dart';
-import 'package:apparence_kit/environnements.dart';
+import 'package:apparence_kit/environments.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:in_app_review/in_app_review.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -65,7 +65,7 @@ class RatingApi {
   Future<void> openStoreListing() {
     if (_env.appStoreId == null) {
       throw Exception(
-        '''appStoreId is not defined in your environment, check [environnements.dart] file''',
+        '''appStoreId is not defined in your environment, check [environments.dart] file''',
       );
     }
     return _inAppReview.openStoreListing(appStoreId: _env.appStoreId);
