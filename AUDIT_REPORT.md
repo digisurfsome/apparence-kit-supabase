@@ -213,13 +213,17 @@ Setting `ErrorWidget.builder` inside `Widget build()` means it runs on every reb
 ### Things that MUST change per-app clone:
 1. `firebase_options.dart` / `firebase_options_dev.dart` - Firebase config (must regenerate per project)
 2. `kit_setup.json` - App name, bundle ID, backend provider settings
-3. `web/index.html` - App title, meta descriptions
-4. `web/manifest.json` - App name
-5. `android/` - Package name, signing configs
-6. `pubspec.yaml` - Project name, description
-7. `lib/environnements.dart` - Backend URL, RevenueCat keys, Sentry DSN, Mixpanel token
-8. `lib/modules/notifications/api/local_notifier.dart:24` - `kAppName`
-9. Firebase region in `user_api.dart` and `authentication_api.dart`
+3. `web/index.html` - App title (`apparencekit`), meta descriptions
+4. `web/manifest.json` - App name (`apparencekit_pro`)
+5. `android/app/build.gradle.kts:21,38` - namespace & applicationId (`com.yourcompany.template`)
+6. `android/app/src/main/AndroidManifest.xml:11` - App label (`flutter_base`)
+7. `android/app/src/main/res/values/strings.xml:3-4` - Facebook App ID & Client Token (currently `000000000000`)
+8. `pubspec.yaml` - Project name, description
+9. `lib/environnements.dart` - Backend URL, RevenueCat keys, Sentry DSN, Mixpanel token, terms/privacy URLs (currently empty)
+10. `lib/modules/notifications/api/local_notifier.dart:24` - `kAppName` (currently `flutter_base`)
+11. `lib/main.dart:126` - App title (currently `Flutter Pro Starter Kit`)
+12. Firebase region `europe-west1` in `user_api.dart:15` and `authentication_api.dart:20`
+13. `lib/modules/settings/settings_page.dart:65,76` - Privacy URL and company URL (currently points to `apparencekit.dev`)
 
 ### Things to add to `.gitignore`:
 ```
