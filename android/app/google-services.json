@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "91333191859",
+    "project_id": "sugarless-252ae",
+    "storage_bucket": "sugarless-252ae.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:91333191859:android:30ff8af0930ed7cd17a8c6",
+        "android_client_info": {
+          "package_name": "com.yourcompany.template"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBEnWSWDNlsUE-xOOtLTRxyrwQ9ZstdpOM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
