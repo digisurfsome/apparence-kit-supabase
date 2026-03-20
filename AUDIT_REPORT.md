@@ -1,237 +1,138 @@
 # ApparenceKit Boilerplate - Full Code Audit Report
 
-**Date:** February 20, 2026
+**Date:** March 20, 2026
 **Auditor:** Claude 4.6 (automated)
-**Project:** ApparenceKit Flutter Boilerplate
+**Project:** ApparenceKit Flutter Boilerplate (apparence-kit-supabase)
 **Files Reviewed:** ~490 across all modules
+**Overall Grade: B-**
 
 ---
 
 ## Executive Summary
 
-This boilerplate has a **solid architectural foundation** (clean 3-layer architecture, Riverpod, Freezed, proper module separation) but suffers from **sloppy copy-paste errors, unfinished TODOs, and security oversights** that suggest it was shipped quickly without thorough QA. It's usable as a starting point, but you'll need to fix the critical bugs before deploying any real app from it.
+This boilerplate has a **solid architectural foundation** (clean 3-layer architecture, Riverpod, Freezed, proper module separation). Several critical bugs found in the Firebase sister repo have **already been fixed** in this version, showing that the codebase has been actively maintained. The remaining issues are primarily template-readiness concerns (hardcoded names, placeholder credentials, naming mismatches) rather than logic errors.
 
-**Verdict:** Good bones, bad finishing. Fix the 5 critical bugs and 8 high-priority issues below before using as a production template.
-
----
-
-## CRITICAL BUGS (5) - Must fix before any app ships
-
-### 1. Sign-in provider checks wrong type (copy-paste bug)
-**File:** `lib/modules/authentication/providers/signin_state_provider.dart:42`
-```dart
-// BUG: checks SignupStateSending instead of SigninStateSending
-if (state is SignupStateSending) {  // <-- WRONG TYPE
-  return;
-}
-```
-**Impact:** The "prevent double-submit" guard NEVER fires on sign-in. Users can spam the sign-in button causing duplicate auth requests. Same bug repeated on lines 61, 77, 94, 112.
-**Fix:** Change all `SignupStateSending` to `SigninStateSending`.
+**Verdict:** Good architecture with most critical bugs already resolved. The main concerns are template-readiness issues that must be addressed per-app and one copy-paste UI text bug.
 
 ---
 
-### 2. Phone auth passes OTP as phone number (logic error)
-**File:** `lib/modules/authentication/providers/phone_auth_notifier.dart:114`
-```dart
-on PhoneAlreadyLinkedException {
-  state = state.copyWith(linkPhoneToUser: false);
-  return sendOtp(otp);  // <-- BUG: passes OTP string, not phone number
-}
-```
-**Impact:** When a phone number is already linked and the user retries, the OTP code gets sent to Firebase as the phone number. This will always fail with an invalid phone number error.
-**Fix:** Change to `sendOtp(state.phoneNumber)`.
+## Bugs Fixed Since Firebase Sister Repo
+
+The following bugs that existed in the Firebase version have been **correctly fixed** in this codebase:
+
+1. `signin_state_provider.dart` correctly checks `SigninStateSending` (was `SignupStateSending` in Firebase version)
+2. `phone_auth_notifier.dart` correctly passes `state.phoneNumber` in the `verifyOtp` catch block (was passing the OTP string in Firebase version)
+3. Error messages in `signin_state_provider.dart` correctly say "Error while signing in" (said "signing up" in Firebase version)
+4. `RecoverPasswordException.toString()` correctly returns `'RecoverPasswordException'` (returned `'SigninException'` in Firebase version)
+5. Exception classes correctly implement `Exception`
+6. Password validation requires 8 characters (was 5 in Firebase version)
+7. `checkPermission` correctly uses `permissions.contains(permissionToCheck)` (was always-true in Firebase version)
 
 ---
 
-### 3. Wrong error messages everywhere (copy-paste from signup)
-Multiple files have error messages copy-pasted from the signup provider:
+## CRITICAL BUGS (1) - Must fix before any app ships
 
-| File | Line | Says | Should Say |
-|------|------|------|------------|
-| `signin_state_provider.dart` | 54 | "Error while signing up" | "Error while signing in" |
-| `signin_state_provider.dart` | 71 | "Error while signing up" | "Error while signing in" |
-| `signin_state_provider.dart` | 88 | "Error while signing up" | "Error while signing in" |
-| `signin_state_provider.dart` | 105 | "Error while signing up" | "Error while signing in" |
-| `signin_state_provider.dart` | 122 | "Error while signing up" | "Error while signing in" |
-| `recover_provider.dart` | 39 | "Error while signing up" | "Error recovering password" |
+### 1. Sign-in button text says "Create my account"
+**File:** `lib/modules/authentication/ui/signin/signin_page.dart:132`
+**Issue:** Copy-paste from signup page. The sign-in button displays "Create my account" instead of "Sign in".
+**Impact:** Confusing UX on the sign-in page. Users may think they are creating a new account.
 
 ---
 
-### 4. RecoverPasswordException.toString() returns wrong class name
-**File:** `lib/modules/authentication/repositories/exceptions/authentication_exceptions.dart:65`
-```dart
-class RecoverPasswordException {
-  @override
-  String toString() {
-    return 'SigninException(code: $code, message: $message)';  // <-- WRONG
-  }
-}
-```
-**Impact:** Error logs/debugging for password recovery show "SigninException" making it impossible to diagnose issues correctly.
+## HIGH PRIORITY (5) - Fix before production use
+
+### 2. Hybrid architecture requires clear documentation
+This boilerplate uses a **dual-backend architecture by design**: Supabase for auth + database + storage, and Firebase for push notifications (FCM) + remote config (since Supabase doesn't provide these). The current code still uses Firebase for some data operations (Firestore, Firebase Auth) that should be migrated to Supabase equivalents. The Firebase dependencies for notifications and remote config must remain.
+
+### 3. google-services.json committed to repo
+**File:** `android/app/google-services.json`
+Firebase credentials (project ID: `sugarless-252ae`) were tracked in git. **Fixed:** removed from tracking.
+
+### 4. firebase_options.dart and firebase_options_dev.dart committed
+**Files:** `lib/firebase_options.dart`, `lib/firebase_options_dev.dart`
+Both files contain API keys and are identical (dev config = prod config). Were in `.gitignore` but still tracked in git. **Fixed:** removed from tracking.
+
+### 5. 44 generated files (.g.dart, .freezed.dart) committed to git
+Generated files that should be produced at build time were tracked in git. `.gitignore` already had rules for these. **Fixed:** removed from tracking.
+
+### 6. Duplicate import in device_api.dart
+**File:** `lib/core/data/api/device_api.dart:12-13`
+`import 'package:flutter/foundation.dart';` appears twice. Will cause linter warnings.
 
 ---
 
-### 5. Firebase credentials committed to repo + dev/prod identical
-**Files:** `lib/firebase_options.dart` and `lib/firebase_options_dev.dart`
-- Both files contain **identical** API keys and project IDs
-- Real Firebase API keys are hardcoded: `AIzaSyB0hISNv8DVu3rO0U-SzMp37RtZxyTJySE`, etc.
-- Project ID `sugarless-252ae` is your personal Firebase project
-- `main.dart:55` confirms prod environment also uses the dev config
+## MEDIUM PRIORITY (8) - Fix when time allows
 
-**Impact for auto-forge:** Every app cloned from this template will point to YOUR Firebase project unless you replace these files. This is a showstopper for your use case.
+### 7. Hardcoded app names in multiple locations
+- `android/app/src/main/AndroidManifest.xml:11` - `flutter_base`
+- `web/index.html:32` - `ApparenceKit`
+- `web/manifest.json:2-3` - `ApparenceKit`
+- `lib/modules/notifications/api/local_notifier.dart:24` - `kAppName = 'flutter_base'`
+- `lib/main.dart:126` - `Flutter Pro Starter Kit`
 
----
+### 8. Template package name com.yourcompany.template
+Appears in AndroidManifest.xml, `MainActivity.kt`, `google-services.json`, and `firebase_options.dart`. Must be replaced per-app.
 
-## HIGH PRIORITY (8) - Fix before production use
+### 9. Empty terms/privacy URLs
+**File:** `lib/environments.dart:23-24`
+`kTermsUrl` and `kPrivacyUrl` are empty strings. Will result in broken links if users tap terms or privacy buttons.
 
-### 6. 40+ generated files committed to git
-The `.gitignore` does NOT exclude `.freezed.dart` or `.g.dart` files. 40+ generated files are tracked in git:
-```
-lib/core/ads/ads_provider.g.dart
-lib/core/ads/ads_state.freezed.dart
-lib/core/data/entities/user_entity.freezed.dart
-lib/core/data/entities/user_entity.g.dart
-... (40+ more)
-```
-**Impact for auto-forge:** These generated files may conflict with code generation after template modifications. They should be in `.gitignore` and regenerated per-project.
+### 10. Hardcoded Firebase region 'us-central1'
+**Files:** `lib/core/data/api/user_api.dart:14`, `lib/modules/authentication/api/authentication_api.dart:18`
+Region is hardcoded rather than configurable via environment. Must change per-project depending on Firebase deployment region.
 
-### 7. Hardcoded Firebase region
-**Files:** `lib/core/data/api/user_api.dart:15` and `lib/modules/authentication/api/authentication_api.dart:20`
-```dart
-FirebaseFunctions.instanceFor(region: 'europe-west1')
-```
-**Impact:** Every app will call Firebase Functions in Europe regardless of where the user's Firebase project is hosted. Must be configurable per-project.
+### 11. Facebook placeholder values
+**File:** `android/app/src/main/res/values/strings.xml:3-4`
+`facebook_app_id=000000000000`, `facebook_client_token=000000`. Will cause Facebook SDK initialization failures.
 
-### 8. Weak password validation
-**File:** `lib/modules/authentication/providers/models/password.dart:10`
-```dart
-if (value.length < 5) {  // Only 5 characters required
-```
-**Impact:** Below industry standards. No uppercase/lowercase/number/symbol requirements. App store reviewers may flag this.
+### 12. Incomplete TODOs in production code
+- `main.dart:54` - TODO to replace with prod firebase options
+- `device_api.dart` - 2 TODOs for storage and carrier info
 
-### 9. Non-exhaustive switch statements in subscription
-**File:** `lib/core/data/models/subscription.dart`
-- Line 190: `formattedPrice()` - missing `threeMonth`, `sixMonth` cases, falls through to empty string
-- Line 203-208: `pricePerMonth()` - missing `month` case, returns `1` as price
-- Line 226-231: `pricePerYear()` - missing `month` case, returns `1` as price
+### 13. Arbitrary 1.5-second delays
+**Files:** `signin_state_provider.dart:50`, `signup_state_provider.dart:50`, `recover_provider.dart:36`
+Comment says "to prevent spamming". This is a UX-degrading workaround; proper debouncing or button-disable logic would be better.
 
-**Impact:** 3-month and 6-month subscriptions show blank or "$1.00" prices to users.
-
-### 10. Hardcoded app name in multiple locations
-- `web/index.html:32` - `<title>apparencekit</title>`
-- `web/manifest.json:2-3` - `"name": "apparencekit_pro"`
-- `lib/modules/notifications/api/local_notifier.dart:24` - `const kAppName = 'flutter_base'`
-- `web/index.html:26` - `apple-mobile-web-app-title` = "apparencekit"
-- `kit_setup.json:2` - `"appName": "flutter_base"`
-- `kit_setup.json:3` - `"bundleId": "com.yourcompany.template"`
-
-**Impact for auto-forge:** All of these need to be parameterized/replaced when cloning.
-
-### 11. Empty catch blocks silently swallow errors
-**Files:** `lib/core/data/api/tracking_api.dart` and others
-```dart
-} catch (_) {}  // Error completely swallowed
-```
-**Impact:** Bugs in analytics/tracking are invisible. You'll never know if Mixpanel/Facebook tracking is broken.
-
-### 12. Exception classes don't extend Exception
-**File:** `lib/modules/authentication/repositories/exceptions/authentication_exceptions.dart`
-`SignupException`, `SigninException`, `RecoverPasswordException` are plain classes that don't extend or implement `Exception`. Only `PhoneAuthException` extends `ApiError`.
-**Impact:** These can't be caught with `on Exception catch (e)` patterns, leading to uncaught error scenarios.
-
-### 13. Subscription `checkPermission` always returns true
-**File:** `lib/modules/subscription/repositories/subscription_repository.dart:125-131`
-```dart
-Future<bool> checkPermission(String permissionToCheck) async {
-    final permissions = await _inAppSubscriptionApi.getPermissions();
-    if (permissions.isEmpty) {
-      throw Exception("Permission denied");
-    }
-    return permissions.isNotEmpty;  // <-- Always true if we get here
-}
-```
-**Impact:** The `permissionToCheck` parameter is completely ignored. Any user with ANY permission passes ALL permission checks.
-
----
-
-## MEDIUM PRIORITY (12) - Fix when time allows
-
-### 14. Unfinished TODOs left in code
-7 TODO comments found in production code:
-- `main.dart:54` - "TODO replace with your own firebase options for production"
-- `user_api.dart:15` - "TODO get region from environment"
-- `device_api.dart` (2 TODOs) - Storage/Carrier device info incomplete
-- `rating_repository.dart` (2 TODOs) - Rating delays hardcoded, should come from env
-- `rate_banner.dart` - "TODO create factory that get value from env"
-
-### 15. Polling loop in auth init
-**File:** `lib/modules/authentication/api/authentication_api.dart`
-Uses `Future.delayed()` in a while loop to wait for initialization - wasteful and fragile.
-
-### 16. Arbitrary delays throughout codebase
-- `phone_auth_notifier.dart:106` - 2-second delay after OTP verify
-- `signin_state_provider.dart:51` - 1.5-second fake delay "to prevent spamming"
-- `signup_state_provider.dart` - Same 1.5-second delay
-- `recover_provider.dart:36` - Same 1.5-second delay
-- `storage_api.dart:73` - 1-second delay before getting download URL
-
-### 17. Guard widget doesn't handle loading/error states
-**File:** `lib/core/guards/guard.dart:32-40`
-Shows empty `Container()` while loading and silently ignores errors.
-
-### 18. Typo in user-facing string
-**File:** `lib/main.dart:236` - Says "developper" instead of "developer"
-
-### 19. `pubspec.lock` committed (debatable for apps vs libraries)
-The `pubspec.lock` is committed which is fine for reproducible builds but means dependency updates require manual lock file updates.
-
-### 20. Sentry trace rate at 20%
+### 14. Sentry trace sample rate at 20%
 **File:** `lib/main.dart:69`
-`tracesSampleRate: 0.2` - For a new app you want this at 1.0 (100%) and decrease later.
-
-### 21. No token refresh mechanism
-**File:** `lib/core/security/secured_storage.dart`
-Tokens are stored and read but never refreshed. If a Firebase token expires, the app fails silently.
-
-### 22. Inconsistent naming - "environnements" (French spelling)
-**File:** `lib/environnements.dart` - French spelling "environnements" instead of English "environments". The `.claude/rules/flutter.mdc` specifically says "use English for code".
-
-### 23. Comments saying "prevent spamming signup button" on SIGN-IN page
-More evidence of copy-paste without review.
-
-### 24. `main.dart:110` - ErrorWidget.builder set inside build()
-Setting `ErrorWidget.builder` inside `Widget build()` means it runs on every rebuild. Should be in `main()` or `initState()`.
-
-### 25. Missing null safety
-- `subscription_repository.dart:87` - Force unwraps `entity!.skuId` without null check
-- `subscription_repository.dart:169` - Force unwraps `_prefs!` without null check
+`tracesSampleRate: 0.2` - For a new app this should start at 1.0 (100%) to capture all traces during early development, then reduce later as traffic grows.
 
 ---
 
-## TEMPLATE-READINESS ISSUES (for auto-forge system)
+## LOW PRIORITY (4)
+
+### 15. Force unwrap on entity!.skuId
+**File:** `lib/modules/subscription/repositories/subscription_repository.dart:87`
+No null check before force unwrap. Will crash if entity is null.
+
+### 16. Force unwrap on _prefs!
+**File:** `lib/modules/subscription/repositories/subscription_repository.dart:166`
+No null check before force unwrap. Will crash if SharedPreferences was not initialized.
+
+### 17. Artificial 500ms delays in notifications_provider.dart
+**File:** `lib/modules/notifications/providers/notifications_provider.dart:20,90`
+Unnecessary delays that slow down the notification UI.
+
+### 18. Feedback error uses .first without null check
+**File:** `lib/modules/feedback/providers/feedback_page_notifier.dart:85-87`
+Uses `.first` on a filtered list without checking if the list is empty. Will throw a `StateError` if no matching vote is found.
+
+---
+
+## TEMPLATE-READINESS ISSUES
 
 ### Things that MUST change per-app clone:
-1. `firebase_options.dart` / `firebase_options_dev.dart` - Firebase config (must regenerate per project)
-2. `kit_setup.json` - App name, bundle ID, backend provider settings
-3. `web/index.html` - App title (`apparencekit`), meta descriptions
-4. `web/manifest.json` - App name (`apparencekit_pro`)
-5. `android/app/build.gradle.kts:21,38` - namespace & applicationId (`com.yourcompany.template`)
-6. `android/app/src/main/AndroidManifest.xml:11` - App label (`flutter_base`)
-7. `android/app/src/main/res/values/strings.xml:3-4` - Facebook App ID & Client Token (currently `000000000000`)
-8. `pubspec.yaml` - Project name, description
-9. `lib/environnements.dart` - Backend URL, RevenueCat keys, Sentry DSN, Mixpanel token, terms/privacy URLs (currently empty)
-10. `lib/modules/notifications/api/local_notifier.dart:24` - `kAppName` (currently `flutter_base`)
-11. `lib/main.dart:126` - App title (currently `Flutter Pro Starter Kit`)
-12. Firebase region `europe-west1` in `user_api.dart:15` and `authentication_api.dart:20`
-13. `lib/modules/settings/settings_page.dart:65,76` - Privacy URL and company URL (currently points to `apparencekit.dev`)
-
-### Things to add to `.gitignore`:
-```
-*.g.dart
-*.freezed.dart
-firebase_options.dart
-firebase_options_dev.dart
-```
+1. **Firebase config** - `firebase_options.dart`, `firebase_options_dev.dart`, `google-services.json` (must regenerate per project)
+2. **App name** - AndroidManifest.xml, `web/index.html`, `web/manifest.json`, `local_notifier.dart` kAppName, `main.dart` title, `pubspec.yaml`
+3. **Bundle ID** - `com.yourcompany.template` in AndroidManifest, `MainActivity.kt`, build configs
+4. **Facebook App ID and Client Token** - `strings.xml`
+5. **RevenueCat API keys** - environment config
+6. **Sentry DSN** - environment config
+7. **Mixpanel token** - environment config
+8. **Backend URL** - environment config
+9. **Terms/Privacy URLs** - `environments.dart`
+10. **Firebase region** - `user_api.dart`, `authentication_api.dart`
+11. **kit_setup.json** - App name, bundle ID, backend provider
 
 ---
 
@@ -244,44 +145,36 @@ firebase_options_dev.dart
 - **Fake implementations for testing** instead of mocks - makes tests more reliable
 - **Route guards** for authentication flow
 - **Environment-based configuration** (dev/prod) via Dart defines
-- **CI/CD pipelines** for both GitHub Actions and GitLab CI
-- **Strict linting** with `package:lint/strict.yaml`
+- **Previously-identified critical bugs have been fixed** - shows active maintenance
 
 ### What's Bad
-- **Heavy copy-paste** across providers with bugs propagated
-- **No input sanitization** on user-facing forms beyond basic email/password validation
-- **Test coverage is thin** - only basic happy paths, no error cases, no edge cases
-- **7 unfinished TODOs** in production code
-- **French naming** mixed with English (environnements)
-- **Generated code in git** - should be generated at build time
-- **No CI step for code generation** - `build_runner` must be run manually
+- **Heavy code generation setup complexity** - requires `build_runner` to be run, no CI step for it
+- **Thin test coverage** - only happy paths, no error case or edge case tests
+- **Data layer still uses Firestore** - auth and data operations should be migrated to Supabase (Firebase kept for FCM + remote config only)
 
-### Overall Grade: **C+**
-Good architecture, poor execution. The French agency clearly knew Flutter patterns but shipped this boilerplate without proper QA. Usable as a foundation if you fix the critical bugs first.
+### Overall Grade: **B-**
+Good architecture with most critical bugs from the Firebase sister repo already resolved. The remaining issues are primarily template-readiness concerns, one copy-paste UI bug, and some code quality nits. Usable as a solid foundation once per-app configuration is applied.
 
 ---
 
 ## RECOMMENDED FIX ORDER
 
 ### Phase 1: Critical (do before any app ships)
-1. Fix sign-in type check bug (5 occurrences)
-2. Fix phone auth OTP/phone number swap
-3. Fix all copy-paste error messages
-4. Fix RecoverPasswordException toString
-5. Add firebase_options files to .gitignore, set up per-project regeneration
+1. Fix sign-in button text ("Create my account" -> "Sign in")
 
 ### Phase 2: High Priority
-6. Add generated files to .gitignore
-7. Make Firebase region configurable
-8. Strengthen password validation
-9. Fix non-exhaustive switch statements
-10. Fix empty catch blocks
-11. Fix exception class hierarchy
-12. Fix checkPermission logic
-13. Replace hardcoded app names with config values
+2. Migrate data operations from Firestore to Supabase (keep Firebase for FCM + remote config)
+3. Ensure Firebase credentials are removed from git tracking
+4. Ensure generated files are removed from git tracking
+5. Remove duplicate import in device_api.dart
 
 ### Phase 3: Template System Prep
-14. Create a configuration script/checklist for auto-forge
-15. Parameterize all per-app values
-16. Add build_runner to CI/CD pipeline
-17. Resolve all TODOs or document as known limitations
+6. Parameterize all hardcoded app names
+7. Replace placeholder Facebook credentials
+8. Make Firebase region configurable via environment
+9. Fill in terms/privacy URLs or add validation
+10. Set Sentry trace rate to 1.0 for new projects
+11. Create a configuration script/checklist for per-app setup
+12. Resolve remaining TODOs or document as known limitations
+13. Add null safety checks for force unwraps
+14. Replace artificial delays with proper debounce/disable logic

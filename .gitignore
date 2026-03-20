@@ -66,13 +66,26 @@ firebase/functions/typings/
 
 firebase/functions/lib/
 
-# Deno cache
+# Deno cache (Supabase Edge Functions)
 /supabase/.deno_cache/
 /supabase/*.lock
+
+# Supabase local development
+/supabase/.temp/
 
 # Firebase options (generated per-project via flutterfire configure)
 lib/firebase_options.dart
 lib/firebase_options_dev.dart
+
+# Firebase credentials (per-project, never share)
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+ios/firebase_app_id_file.json
+
+# Environment files (contain secrets)
+.env
+.env.*
+!.env.example
 
 # Generated Dart files (regenerate with: dart run build_runner build)
 *.g.dart

@@ -1,393 +1,232 @@
-# ApparenceKit CLI + Firebase Setup Worksheet
+# ApparenceKit Supabase Boilerplate — Setup Roadmap
 
-**Date:** February 2025
-**Project:** ApparenceKit Boilerplate (Flutter/Dart)
-**Project Location:** `C:\WINDOWS\myproject`
-**Firebase Project:** `sugarless-252ae`
-**Firebase Account:** `dux8bevo@gmail.com`
+**Last Updated:** March 20, 2026
+
+This guide walks you through setting up a new app from this boilerplate.
 
 ---
 
-## Table of Contents
+## Prerequisites
 
-1. [Session Overview](#session-overview)
-2. [Complete Command Log (Chronological)](#complete-command-log-chronological)
-3. [Permanent PATH Fix (Not Yet Applied)](#permanent-path-fix-not-yet-applied)
-4. [Current Status and Blockers](#current-status-and-blockers)
-5. [Remaining Steps to Complete Setup](#remaining-steps-to-complete-setup)
-6. [Warnings and Recommendations](#warnings-and-recommendations)
-
----
-
-## Session Overview
-
-Across multiple terminal sessions, the user attempted to:
-
-- Install the ApparenceKit CLI
-- Log in to Firebase and configure it for the project
-- Add FlutterFire CLI and generate Firebase config files
-- Build and run the Flutter project on Chrome
-- Fix Dart switch-statement exhaustiveness errors in generated boilerplate code
-
-**End result:** Firebase configuration succeeded, but the project cannot build because the installed Dart SDK (3.8.1) is too old for the boilerplate (requires ^3.11.0). Code generation is completely blocked.
+- Flutter SDK (stable channel, Dart SDK ^3.11.0)
+- A Supabase account (https://supabase.com) OR local Supabase via Docker
+- A Firebase account (for push notifications and current auth — migration to Supabase auth is planned)
+- Node.js + npm (for Firebase CLI)
+- Git
 
 ---
 
-## Complete Command Log (Chronological)
+## Step 1: Clone the Repository
 
-Below is every command the user executed, reconstructed in logical order across all sessions.
-
----
-
-### Phase 1: Install ApparenceKit CLI
-
-**Command 1:**
-```powershell
-irm https://tinyurl.com/kitwindows | iex
+```bash
+git clone https://github.com/digisurfsome/apparence-kit-supabase.git my-app
+cd my-app
 ```
-- **What it does:** Downloads and runs the ApparenceKit CLI installer for Windows.
-- **Key output:**
-  ```
-  Installed ApparenceKit CLI v5.0.16
-  Installed to C:\Users\lober\.apparencekit\bin\apparence_cli.exe
-  Already in PATH
-  ```
-- **Result:** SUCCESS. CLI installed and available.
 
 ---
 
-### Phase 2: Firebase Login
+## Step 2: Install Flutter Dependencies
 
-**Command 2:**
-```powershell
+```bash
+flutter pub get
+```
+
+---
+
+## Step 3: Run Code Generation
+
+The project uses `freezed`, `json_serializable`, and `riverpod_generator`. Generated files (`.g.dart`, `.freezed.dart`) are NOT committed to git.
+
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+
+---
+
+## Step 4: Create a Supabase Project
+
+### Option A: Supabase Cloud
+
+1. Go to https://supabase.com/dashboard
+2. Click "New Project"
+3. Note your **Project URL** and **Anon Key** from Settings > API
+
+### Option B: Local Supabase (Docker)
+
+```bash
+# Install Supabase CLI
+npm install -g supabase
+
+# Start local Supabase
+supabase start
+
+# Note the API URL and anon key from the output
+```
+
+---
+
+## Step 5: Run Supabase Migrations
+
+Apply the SQL migrations that create the tables the app expects:
+
+```bash
+# If using Supabase CLI with a linked project:
+supabase db push
+
+# Or apply manually via the Supabase SQL Editor:
+# Run each file in supabase/migrations/ in order
+```
+
+Tables created:
+- `users` — user profiles
+- `subscriptions` — user subscriptions
+- `notifications` — push notifications
+- `feature_requests` — feature request board
+- `feature_votes` — votes on feature requests
+- `user_feature_requests` — user-submitted feature requests
+- `user_infos` — key-value user metadata (onboarding answers)
+
+All tables include Row Level Security (RLS) policies.
+
+---
+
+## Step 6: Set Up Firebase (for Push Notifications)
+
+The current codebase uses Firebase for auth and notifications. Firebase setup is required until the Supabase auth migration is complete.
+
+```bash
+# Install Firebase CLI
+npm install -g firebase-tools
+
+# Login
 firebase login
-```
-- **What it does:** Attempts to authenticate with Firebase CLI.
-- **Key output:**
-  ```
-  'firebase' is not recognized as an internal or external command
-  ```
-- **Result:** FAILED. Firebase CLI (installed via npm) was not on the system PATH.
 
-**Command 3:**
-```powershell
-$env:PATH += ";C:\Users\lober\AppData\Roaming\npm"
-```
-- **What it does:** Temporarily adds the npm global bin directory to the current session's PATH so `firebase` can be found.
-- **Key output:** (none -- silent success)
-- **Result:** SUCCESS (session-only fix).
-
-**Command 4:**
-```powershell
-firebase login
-```
-- **What it does:** Retries Firebase authentication now that the CLI is on PATH.
-- **Key output:**
-  ```
-  Already logged in as dux8bevo@gmail.com
-  ```
-- **Result:** SUCCESS. Firebase authenticated.
-
----
-
-### Phase 3: Install and Configure FlutterFire CLI
-
-**Command 5:**
-```powershell
-flutterfire configure --project=sugarless-252ae
-```
-- **What it does:** Attempts to run FlutterFire CLI to configure Firebase for the project.
-- **Key output:**
-  ```
-  'flutterfire' is not recognized as an internal or external command
-  ```
-- **Result:** FAILED. FlutterFire CLI not installed or not on PATH.
-
-**Command 6:**
-```powershell
+# Install FlutterFire CLI
 dart pub global activate flutterfire_cli
-```
-- **What it does:** Installs the FlutterFire CLI globally via Dart's package manager.
-- **Key output:**
-  ```
-  Activated flutterfire_cli 1.3.1
-  Warning: Pub installs executables into C:\Users\lober\AppData\Local\Pub\Cache\bin,
-  which is not on your path.
-  ```
-- **Result:** SUCCESS (installed), but warned that the bin directory is not on PATH.
 
-**Command 7:**
-```powershell
-$env:PATH += ";$env:LOCALAPPDATA\Pub\Cache\bin"
-```
-- **What it does:** Temporarily adds the Dart Pub Cache bin directory to the current session's PATH.
-- **Key output:** (none -- silent success)
-- **Result:** SUCCESS (session-only fix).
+# Configure Firebase for your project
+flutterfire configure --project=YOUR_PROJECT_ID
 
-**Command 8:**
-```powershell
-flutterfire configure --project=sugarless-252ae
-```
-- **What it does:** Retries FlutterFire configuration.
-- **Key output:**
-  ```
-  The current directory does not appear to be a Flutter application project.
-  ```
-- **Result:** FAILED. The terminal was still in `C:\WINDOWS\system32` (default PowerShell directory), not in the project folder.
-
-**Command 9:**
-```powershell
-cd C:\WINDOWS\myproject
-```
-- **What it does:** Changes to the actual Flutter project directory.
-- **Result:** SUCCESS.
-
-**Command 10:**
-```powershell
-flutterfire configure --project=sugarless-252ae
-```
-- **What it does:** Runs FlutterFire configuration from within the project directory.
-- **Key output:**
-  ```
-  i Found 3 Firebase projects.
-  Registered a new Firebase android app ...
-  Registered a new Firebase ios app ...
-  Registered a new Firebase web app ...
-  Firebase configuration file lib\firebase_options.dart generated successfully.
-  ```
-- **Result:** SUCCESS. Firebase configured for Android, iOS, and Web. Generated `lib\firebase_options.dart`.
-
-**Command 11:**
-```powershell
-flutterfire configure --project=sugarless-252ae --out lib/firebase_options_dev.dart
-```
-- **What it does:** Generates a second Firebase config file for a "dev" environment.
-- **Key output:**
-  ```
-  Firebase configuration file lib\firebase_options_dev.dart generated successfully.
-  ```
-- **Result:** SUCCESS. Reused the same Firebase app registrations, output to dev config file.
-
----
-
-### Phase 4: Build Attempts (All Failed)
-
-**Command 12:** (implied from output)
-```powershell
-flutter pub get
-```
-- **What it does:** Resolves and downloads all project dependencies.
-- **Key output:**
-  ```
-  Got dependencies! (20 packages have newer versions available)
-  ```
-- **Result:** SUCCESS. Dependencies resolved, though 20 packages are outdated.
-
-**Command 13:**
-```powershell
-flutter run -d chrome
-```
-- **What it does:** Attempts to build and run the Flutter app on Chrome in debug mode.
-- **Key output (first few errors):**
-  ```
-  Launching lib\main.dart on Chrome in debug mode...
-  lib/core/network/api_error.dart:6:1: Error: ...
-  ```
-  Followed by massive compilation errors. Root cause: 18+ `.g.dart` and `.freezed.dart` files are missing. These are generated files from `freezed`, `riverpod_generator`, and `json_serializable` that haven't been created yet.
-- **Result:** FAILED. Missing code-generated files.
-
-**Command 14:**
-```powershell
-flutter run -d chrome --release
-```
-- **What it does:** Attempts to build and run in release mode (dart2js compilation).
-- **Key output:**
-  ```
-  Target dart2js failed: ...
-  ```
-  Same missing generated files.
-- **Result:** FAILED. Same root cause.
-
-**Command 15:**
-```powershell
-dart run build_runner build --delete-conflicting-outputs
-```
-- **What it does:** Runs the Dart `build_runner` to generate all the missing `.g.dart` and `.freezed.dart` files.
-- **Key output:**
-  ```
-  The current Dart SDK version is 3.8.1.
-  Because apparence_kit requires SDK version ^3.11.0, version solving failed.
-  ```
-- **Result:** FAILED. **CRITICAL BLOCKER.** The installed Dart SDK (3.8.1, bundled with the current Flutter installation) is too old. The `apparence_kit` boilerplate requires Dart SDK >= 3.11.0.
-
----
-
-### Phase 5: Fix-Switch Attempts (Permission Issues)
-
-These commands were run from VS Code's integrated terminal, also in `C:\WINDOWS\myproject`.
-
-**Command 16:** (PowerShell function definition)
-```powershell
-function Fix-Switch { ... }
-```
-- **What it does:** Defined a custom PowerShell function to find non-exhaustive Dart switch statements and add a default wildcard case (`_ =>`) to them.
-
-**Commands 17-22:** Applied Fix-Switch to six files:
-```powershell
-Fix-Switch "lib\modules\authentication\ui\phone_auth_page.dart" "_ => const SizedBox(),"
-Fix-Switch "lib\modules\authentication\ui\recover_password_page.dart" "_ => const SizedBox(),"
-Fix-Switch "lib\modules\authentication\ui\signin_page.dart" "_ => const SizedBox(),"
-Fix-Switch "lib\modules\authentication\ui\signup_page.dart" "_ => const SizedBox(),"
-Fix-Switch "lib\modules\subscription\ui\premium_page.dart" "_ => const SizedBox(),"
-Fix-Switch "lib\modules\authentication\providers\phone_auth_notifier.dart" "_ => throw StateError('Unknown state'),"
-```
-- **What they do:** Add default wildcard cases to switch statements in 6 Dart files to fix "not exhaustively matched" compiler errors.
-- **Key output for each:**
-  ```
-  Exception calling "WriteAllLines" ... Access is denied.
-  Fixed: lib\modules\authentication\ui\phone_auth_page.dart
-  ```
-- **Result:** PARTIALLY FAILED. Each command reported "Access denied" on WriteAllLines (because `C:\WINDOWS` is a system-protected directory) but also printed "Fixed." The contradictory output suggests the files may or may not have been modified. The permission error is a strong indicator that the writes did not actually succeed.
-
-**Command 23:**
-```powershell
-Write-Host "Done! All files fixed."
-```
-- **Key output:** `Done! All files fixed.`
-- **Result:** Just a print statement; does not confirm the files were actually changed.
-
----
-
-## Permanent PATH Fix (Not Yet Applied)
-
-During the session, two PATH additions were made using `$env:PATH +=`, which only persists for the current PowerShell session. Once that terminal window is closed, `firebase` and `flutterfire` will stop being recognized again.
-
-### The permanent fix (choose ONE approach):
-
-**Option A -- Using .NET Environment API (recommended):**
-```powershell
-[Environment]::SetEnvironmentVariable(
-    "PATH",
-    $env:PATH + ";C:\Users\lober\AppData\Roaming\npm;C:\Users\lober\AppData\Local\Pub\Cache\bin",
-    "User"
-)
-```
-
-**Option B -- Using setx:**
-```powershell
-setx PATH "$env:PATH;C:\Users\lober\AppData\Roaming\npm;C:\Users\lober\AppData\Local\Pub\Cache\bin"
-```
-
-> **Note:** `setx` has a 1024-character limit on the PATH value. If your PATH is already long, use Option A or manually add the two directories via **System Properties > Environment Variables > User variables > Path > Edit**.
-
-### The two directories that need to be permanently on PATH:
-
-| Directory | Purpose |
-|---|---|
-| `C:\Users\lober\AppData\Roaming\npm` | Firebase CLI (`firebase` command) |
-| `C:\Users\lober\AppData\Local\Pub\Cache\bin` | FlutterFire CLI (`flutterfire` command) |
-
----
-
-## Current Status and Blockers
-
-| Item | Status | Notes |
-|---|---|---|
-| ApparenceKit CLI | DONE | v5.0.16 installed at `C:\Users\lober\.apparencekit\bin\` |
-| Firebase Login | DONE | Logged in as `dux8bevo@gmail.com` |
-| Firebase Config (default) | DONE | `lib\firebase_options.dart` generated |
-| Firebase Config (dev) | DONE | `lib\firebase_options_dev.dart` generated |
-| PATH fixes (permanent) | NOT DONE | Session-only fixes applied; will break on terminal restart |
-| Code Generation (build_runner) | BLOCKED | Dart SDK 3.8.1 installed; project requires ^3.11.0 |
-| Flutter Build (debug) | BLOCKED | Cannot compile -- missing .g.dart / .freezed.dart files |
-| Flutter Build (release) | BLOCKED | Same root cause as debug build |
-| Switch exhaustiveness fixes | UNCERTAIN | Fix-Switch commands hit "Access denied" in `C:\WINDOWS` |
-| Project running on Chrome | NOT DONE | Blocked by all of the above |
-
-### Critical Blocker
-
-```
-The current Dart SDK version is 3.8.1.
-Because apparence_kit requires SDK version ^3.11.0, version solving failed.
-```
-
-The Flutter SDK bundled with the current installation ships Dart 3.8.1. The ApparenceKit boilerplate's `pubspec.yaml` declares a minimum Dart SDK constraint of `^3.11.0`. Until Flutter is upgraded to a version that bundles Dart >= 3.11.0, **no code generation or building is possible**.
-
----
-
-## Remaining Steps to Complete Setup
-
-### Step 1: Upgrade Flutter SDK
-```powershell
-flutter upgrade
-```
-Or, if on a specific channel:
-```powershell
-flutter channel stable
-flutter upgrade
-```
-Verify afterward:
-```powershell
-flutter --version
-dart --version
-```
-Dart version must be >= 3.11.0.
-
-### Step 2: Apply Permanent PATH Fixes
-Run one of the permanent PATH fix commands from the section above, then **restart all terminal windows**.
-
-### Step 3: Move the Project Out of C:\WINDOWS (Recommended)
-The project is currently at `C:\WINDOWS\myproject`, which is a system-protected directory. This caused the "Access denied" errors during the Fix-Switch phase and will likely cause more permission issues. Recommended:
-```powershell
-# Move project to user directory
-Move-Item -Path "C:\WINDOWS\myproject" -Destination "C:\Users\lober\myproject"
-cd C:\Users\lober\myproject
-```
-
-### Step 4: Resolve Dependencies
-```powershell
-flutter pub get
-```
-
-### Step 5: Run Code Generation
-```powershell
-dart run build_runner build --delete-conflicting-outputs
-```
-This will generate all the missing `.g.dart` and `.freezed.dart` files that caused the 18+ compilation errors.
-
-### Step 6: Re-apply Switch Exhaustiveness Fixes (If Needed)
-If the Fix-Switch commands did not actually write to disk (likely due to the Access Denied errors), re-run them from the new project location. Or, after code generation, check if the switch errors still exist -- some may be resolved by the generated code.
-
-### Step 7: Build and Run
-```powershell
-flutter run -d chrome
+# Generate dev config
+flutterfire configure --project=YOUR_PROJECT_ID --out lib/firebase_options_dev.dart
 ```
 
 ---
 
-## Warnings and Recommendations
+## Step 7: Set Environment Variables
 
-1. **Project location `C:\WINDOWS\myproject` is problematic.** The `C:\WINDOWS` directory is owned by the SYSTEM account and has restricted write permissions. This will cause recurring "Access denied" errors for any tool that tries to write files (build_runner, Fix-Switch, IDE auto-save, etc.). Move the project to a user-writable location like `C:\Users\lober\myproject` or `C:\dev\myproject`.
+The app reads configuration from Dart environment variables (compile-time constants via `--dart-define`).
 
-2. **20 outdated packages** were flagged during `flutter pub get`. After upgrading the SDK, run `flutter pub outdated` to see which packages can be updated, and `flutter pub upgrade` if appropriate.
+Required variables:
+```bash
+# Backend / Supabase
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+BACKEND_URL=https://your-api-url.com  # or leave empty if using Supabase directly
 
-3. **Firebase app IDs were registered** during `flutterfire configure`. These are now linked to the `sugarless-252ae` project in the Firebase console. Do not re-register unless you want duplicate entries.
+# Environment
+ENV=dev  # or 'prod'
 
-4. **The session-only PATH fixes will disappear** when the terminal is closed. Until the permanent fix is applied, every new terminal session will require re-adding the two directories to PATH before `firebase` or `flutterfire` commands will work.
+# RevenueCat (optional, for in-app purchases)
+RC_ANDROID_API_KEY=your-android-key
+RC_IOS_API_KEY=your-ios-key
+
+# Analytics (optional)
+MIXPANEL_TOKEN=your-mixpanel-token
+
+# Error reporting (prod only)
+SENTRY_DSN=your-sentry-dsn
+
+# App Store (for rating prompts)
+APP_STORE_ID=your-app-store-id
+```
+
+Run the app with environment variables:
+```bash
+flutter run --dart-define=ENV=dev --dart-define=BACKEND_URL=https://your-url.com
+```
 
 ---
 
-## Quick Reference: Key Paths
+## Step 8: Replace Template-Specific Values
 
-| Item | Path |
-|---|---|
-| Project | `C:\WINDOWS\myproject` (should be moved) |
-| ApparenceKit CLI | `C:\Users\lober\.apparencekit\bin\apparence_cli.exe` |
-| Firebase CLI (npm) | `C:\Users\lober\AppData\Roaming\npm\firebase` |
-| FlutterFire CLI | `C:\Users\lober\AppData\Local\Pub\Cache\bin\flutterfire` |
-| Firebase Config (default) | `C:\WINDOWS\myproject\lib\firebase_options.dart` |
-| Firebase Config (dev) | `C:\WINDOWS\myproject\lib\firebase_options_dev.dart` |
+### App Name
+Replace in ALL of these locations:
+- `pubspec.yaml` — `name:` field
+- `web/index.html:32` — `<title>`
+- `web/index.html:26` — `apple-mobile-web-app-title`
+- `web/manifest.json:2-3` — `name` and `short_name`
+- `android/app/src/main/AndroidManifest.xml:11` — `android:label`
+- `lib/modules/notifications/api/local_notifier.dart:24` — `kAppName`
+- `lib/main.dart:126` — MaterialApp `title`
+
+### Bundle ID / Application ID
+Replace `com.yourcompany.template` in:
+- `android/app/build.gradle.kts` — `namespace` and `applicationId`
+- `android/app/src/main/kotlin/com/yourcompany/template/MainActivity.kt` — package declaration + rename directory
+- iOS: Xcode project settings
+
+You can use the `change_app_package_name` dev dependency:
+```bash
+dart run change_app_package_name:main com.yourcompany.yourapp
+```
+
+### Facebook SDK (if using Facebook events/login)
+- `android/app/src/main/res/values/strings.xml:3-4` — Replace placeholder `000000000000` with your Facebook App ID and Client Token
+
+### Terms & Privacy URLs
+- `lib/environments.dart:23-24` — Set `kTermsUrl` and `kPrivacyUrl`
+
+### Firebase Region
+- `lib/core/data/api/user_api.dart:14` — Change `_kFirebaseRegion` to match your project
+- `lib/modules/authentication/api/authentication_api.dart:18` — Same
 
 ---
 
-*Document generated from raw PowerShell terminal output analysis across 5 sessions.*
+## Step 9: Update kit_setup.json
+
+Edit `kit_setup.json` to reflect your actual configuration (app name, bundle ID, providers, etc.).
+
+---
+
+## Step 10: Run the App
+
+```bash
+# Debug mode
+flutter run
+
+# Or with environment variables
+flutter run --dart-define=ENV=dev --dart-define=BACKEND_URL=https://your-url.com
+```
+
+---
+
+## Step 11: Run Tests
+
+```bash
+flutter test
+```
+
+---
+
+## Step 12: Run Analysis
+
+```bash
+flutter analyze lib test
+```
+
+---
+
+## Troubleshooting
+
+### "Missing .g.dart / .freezed.dart" errors
+Run code generation: `dart run build_runner build --delete-conflicting-outputs`
+
+### "The current Dart SDK version is X.X.X"
+Upgrade Flutter: `flutter upgrade`
+
+### Firebase "not configured" errors
+Run `flutterfire configure` from the project root.
+
+### Supabase connection errors
+Check that SUPABASE_URL and SUPABASE_ANON_KEY are set correctly and that migrations have been applied.

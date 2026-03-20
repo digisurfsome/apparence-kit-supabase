@@ -1,1 +1,25 @@
-{"appName":"ApparenceKit","bundleId":"com.apparencekit.app","backendProvider":"firebase","subscriptionModule":true,"feedbackModule":true,"useFirebaseAuth":true,"useFirebaseFirestore":true,"storageProvider":"firebase","webCompat":true,"internationalization":true,"useSentry":true,"withOnboarding":true,"cameraConfig":null,"remoteConfigProvider":"firebase","analyticsProvider":"mixpanel","anonymousSignup":true,"withFacebookPixel":true,"socialAuthList":["google"],"firebaseProjectId":null,"supabaseProjectId":null,"withDashboard":false,"supabasePublishableKey":null}
+{
+  "appName": "ApparenceKit",
+  "bundleId": "com.yourcompany.template",
+  "backendProvider": "supabase",
+  "subscriptionModule": true,
+  "feedbackModule": true,
+  "useFirebaseAuth": true,
+  "useFirebaseFirestore": true,
+  "storageProvider": "firebase",
+  "webCompat": true,
+  "internationalization": true,
+  "useSentry": true,
+  "withOnboarding": true,
+  "cameraConfig": null,
+  "remoteConfigProvider": "firebase",
+  "analyticsProvider": "mixpanel",
+  "anonymousSignup": true,
+  "withFacebookPixel": true,
+  "socialAuthList": ["google"],
+  "firebaseProjectId": "REPLACE_WITH_YOUR_FIREBASE_PROJECT_ID",
+  "supabaseProjectId": "REPLACE_WITH_YOUR_SUPABASE_PROJECT_ID",
+  "withDashboard": false,
+  "supabasePublishableKey": "REPLACE_WITH_YOUR_SUPABASE_ANON_KEY",
+  "_note": "backendProvider is set to 'supabase' to indicate the intended backend. However, the current code still uses Firebase for auth, Firestore, and storage. Supabase SQL migrations are provided in supabase/migrations/. A full code migration from Firebase to Supabase APIs is planned."
+}
