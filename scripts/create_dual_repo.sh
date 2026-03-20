@@ -56,8 +56,9 @@ mkdir -p dual
 cd dual
 git init
 
-# --- flutter/ from mobile boilerplate (everything except supabase/) ---
-rsync -a --exclude='.git' --exclude='supabase/' --exclude='.github/' ../mobile/ ./flutter/
+# --- flutter/ from mobile boilerplate (everything except supabase/, .git/, .github/) ---
+cp -r ../mobile ./flutter
+rm -rf ./flutter/.git ./flutter/supabase ./flutter/.github
 
 # --- nextjs/ from web boilerplate ---
 cp -r ../web/nextjs ./nextjs
