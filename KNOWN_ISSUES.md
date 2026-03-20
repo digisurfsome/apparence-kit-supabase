@@ -5,22 +5,26 @@
 
 ---
 
+## ARCHITECTURE NOTE
+
+### Hybrid Backend: Supabase + Firebase
+
+This boilerplate uses a **dual-backend architecture by design**:
+
+- **Supabase** = main database, authentication, and storage
+- **Firebase** = push notifications (FCM) and remote config only
+
+This is because Supabase does not provide push notification or remote config services. Firebase is required for iOS push notifications via Flutter.
+
+The Supabase database schema is defined in `supabase/migrations/`. Firebase dependencies (`firebase_core`, `firebase_messaging`, `firebase_remote_config`) must remain in the project for notifications and remote config to function.
+
+The data layer (auth, Firestore, storage) still uses Firebase APIs in some modules and needs to be migrated to Supabase equivalents. The `supabase_api.mdc` rule in `.claude/rules/` shows the target pattern for Supabase API classes.
+
+---
+
 ## CRITICAL
 
-### 1. Backend Mismatch -- Firebase Code in Supabase-Named Repository
-
-**Severity:** Critical
-**Status:** Known limitation
-
-The repository is named `apparence-kit-supabase`, but all application code uses Firebase SDKs:
-
-- `firebase_auth`, `firebase_core`, `firebase_storage`, `firebase_messaging`, `firebase_remote_config` in `pubspec.yaml`
-- `kit_setup.json` declares `"backendProvider": "firebase"`, `"useFirebaseAuth": true`, `"useFirebaseFirestore": true`, `"storageProvider": "firebase"`
-- Firebase region is hardcoded to `us-central1` in `lib/core/data/api/user_api.dart` and `lib/modules/authentication/api/authentication_api.dart`
-
-The `.gitignore` includes Supabase-related entries (`/supabase/.deno_cache/`, `/supabase/.temp/`), but no `supabase/` directory or Supabase SDK usage exists in the codebase. A full Firebase-to-Supabase migration has **not** been performed.
-
-**Impact:** Developers expecting Supabase integration will find Firebase throughout. The boilerplate currently provides a Firebase implementation that must be migrated manually.
+(No critical issues remain — the sign-in button text bug has been fixed.)
 
 ---
 

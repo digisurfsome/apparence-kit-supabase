@@ -41,8 +41,8 @@ The following bugs that existed in the Firebase version have been **correctly fi
 
 ## HIGH PRIORITY (5) - Fix before production use
 
-### 2. Repo name implies Supabase but code uses Firebase
-The repository is named `apparence-kit-supabase`, but the entire codebase uses `firebase_auth`, `cloud_firestore`, `firebase_messaging`, etc. `kit_setup.json` confirms `backendProvider: "firebase"`. This is a naming/packaging mismatch that will cause confusion.
+### 2. Hybrid architecture requires clear documentation
+This boilerplate uses a **dual-backend architecture by design**: Supabase for auth + database + storage, and Firebase for push notifications (FCM) + remote config (since Supabase doesn't provide these). The current code still uses Firebase for some data operations (Firestore, Firebase Auth) that should be migrated to Supabase equivalents. The Firebase dependencies for notifications and remote config must remain.
 
 ### 3. google-services.json committed to repo
 **File:** `android/app/google-services.json`
@@ -150,7 +150,7 @@ Uses `.first` on a filtered list without checking if the list is empty. Will thr
 ### What's Bad
 - **Heavy code generation setup complexity** - requires `build_runner` to be run, no CI step for it
 - **Thin test coverage** - only happy paths, no error case or edge case tests
-- **Repo name mismatch** - called "supabase" but uses Firebase throughout
+- **Data layer still uses Firestore** - auth and data operations should be migrated to Supabase (Firebase kept for FCM + remote config only)
 
 ### Overall Grade: **B-**
 Good architecture with most critical bugs from the Firebase sister repo already resolved. The remaining issues are primarily template-readiness concerns, one copy-paste UI bug, and some code quality nits. Usable as a solid foundation once per-app configuration is applied.
@@ -163,7 +163,7 @@ Good architecture with most critical bugs from the Firebase sister repo already 
 1. Fix sign-in button text ("Create my account" -> "Sign in")
 
 ### Phase 2: High Priority
-2. Clarify repo naming vs actual backend provider
+2. Migrate data operations from Firestore to Supabase (keep Firebase for FCM + remote config)
 3. Ensure Firebase credentials are removed from git tracking
 4. Ensure generated files are removed from git tracking
 5. Remove duplicate import in device_api.dart

@@ -23,6 +23,10 @@ lib/
 
 **Stack:** Flutter + Riverpod (state) + Freezed (models) + go_router (navigation)
 
+**Backend:** Dual-backend architecture:
+- **Supabase** — main database, auth, and storage
+- **Firebase** — push notifications (FCM) + remote config only (Supabase doesn't provide these)
+
 ## Quick Start
 
 ```bash
