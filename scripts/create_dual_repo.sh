@@ -16,6 +16,7 @@ set -euo pipefail
 GITHUB_ORG="digisurfsome"
 DUAL_REPO="fullstack-boilerplate"
 MOBILE_REPO="apparence-kit-supabase"
+MOBILE_BRANCH="claude/prepare-reusable-boilerplate-lb6a9"
 WEB_REPO="Web-BoilerPlate-D2D"
 WORK_DIR=$(mktemp -d)
 
@@ -43,7 +44,7 @@ echo "  All checks passed."
 echo ""
 echo "[1/10] Cloning source repos..."
 cd "$WORK_DIR"
-git clone "https://github.com/$GITHUB_ORG/$MOBILE_REPO.git" mobile
+git clone -b "$MOBILE_BRANCH" "https://github.com/$GITHUB_ORG/$MOBILE_REPO.git" mobile
 git clone "https://github.com/$GITHUB_ORG/$WEB_REPO.git" web
 echo "  Done."
 
