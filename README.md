@@ -1,5 +1,9 @@
 # apparence_kit
 
+docs pages below
+https://apparencekit.dev/docs/start/overview/
+
+
 A new Flutter project.
 
 ## Getting Started
