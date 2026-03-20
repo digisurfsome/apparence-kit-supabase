@@ -129,7 +129,7 @@ class SigninPage extends ConsumerWidget {
                               );
                         },
                         child: switch (state) {
-                          SigninStateData() => const Text('Create my account'),
+                          SigninStateData() => const Text('Sign in'),
                           SigninStateSending() => const ButtonLoading(),
                         },
                       ),

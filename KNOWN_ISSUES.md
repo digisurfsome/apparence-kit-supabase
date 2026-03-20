@@ -1,105 +1,147 @@
-# Known Issues and Code Review
+# Known Issues
 
-Analysis of the ApparenceKit boilerplate project based on setup sessions (February 2025).
-
----
-
-## Critical Blockers
-
-### 1. Dart SDK Version Mismatch
-- **Status:** BLOCKING all builds and code generation
-- **Issue:** Installed Dart SDK is 3.8.1, project requires ^3.11.0
-- **Impact:** `build_runner`, `flutter run`, and all compilation is completely blocked
-- **Fix:** `flutter channel stable && flutter upgrade` then verify `dart --version` >= 3.11.0
-
-### 2. Project Located in System-Protected Directory
-- **Status:** BLOCKING file writes
-- **Issue:** Project is at `C:\WINDOWS\myproject` - a system-protected path
-- **Impact:** Any tool that writes files (build_runner, IDE, PowerShell scripts) gets "Access denied"
-- **Fix:** Move project to `C:\Users\lober\myproject` or `C:\dev\myproject`
-
-### 3. Missing Generated Code Files
-- **Status:** BLOCKING compilation (18+ errors)
-- **Issue:** `.g.dart` and `.freezed.dart` files have not been generated
-- **Impact:** Every file that imports generated code fails to compile
-- **Files affected:**
-  - `lib/core/network/api_error.dart` and related `.g.dart` files
-  - Authentication module providers and models
-  - Subscription module models
-- **Fix:** After resolving blockers 1 and 2, run:
-  ```
-  dart run build_runner build --delete-conflicting-outputs
-  ```
+**Project:** apparence-kit-supabase (Flutter boilerplate)
+**Audit date:** March 20, 2026
 
 ---
 
-## Non-Critical Issues
+## CRITICAL
 
-### 4. PATH Not Permanently Configured
-- **Status:** Will break on terminal restart
-- **Issue:** `firebase` and `flutterfire` CLI tools were added to PATH with session-only `$env:PATH +=` commands
-- **Impact:** Every new terminal requires re-adding paths manually
-- **Fix:** See SETUP_GUIDE.md Step 1c
+### 1. Backend Mismatch -- Firebase Code in Supabase-Named Repository
 
-### 5. Switch Exhaustiveness Fixes May Not Have Applied
-- **Status:** UNCERTAIN
-- **Issue:** PowerShell `Fix-Switch` commands reported both "Access denied" and "Fixed" for each file
-- **Impact:** 6 Dart files may still have non-exhaustive switch statement errors
-- **Files to check:**
-  - `lib/modules/authentication/ui/phone_auth_page.dart`
-  - `lib/modules/authentication/ui/recover_password_page.dart`
-  - `lib/modules/authentication/ui/signin_page.dart`
-  - `lib/modules/authentication/ui/signup_page.dart`
-  - `lib/modules/subscription/ui/premium_page.dart`
-  - `lib/modules/authentication/providers/phone_auth_notifier.dart`
-- **Fix:** After code generation succeeds, try building. If switch errors appear, add `_ => const SizedBox(),` (or appropriate default) to each non-exhaustive switch
+**Severity:** Critical
+**Status:** Known limitation
 
-### 6. 20 Outdated Packages
-- **Status:** LOW priority
-- **Issue:** `flutter pub get` flagged 20 packages with newer versions
-- **Impact:** Potential security patches and bug fixes not applied
-- **Fix:** After project builds successfully:
-  ```
-  flutter pub outdated
-  flutter pub upgrade
-  ```
+The repository is named `apparence-kit-supabase`, but all application code uses Firebase SDKs:
+
+- `firebase_auth`, `firebase_core`, `firebase_storage`, `firebase_messaging`, `firebase_remote_config` in `pubspec.yaml`
+- `kit_setup.json` declares `"backendProvider": "firebase"`, `"useFirebaseAuth": true`, `"useFirebaseFirestore": true`, `"storageProvider": "firebase"`
+- Firebase region is hardcoded to `us-central1` in `lib/core/data/api/user_api.dart` and `lib/modules/authentication/api/authentication_api.dart`
+
+The `.gitignore` includes Supabase-related entries (`/supabase/.deno_cache/`, `/supabase/.temp/`), but no `supabase/` directory or Supabase SDK usage exists in the codebase. A full Firebase-to-Supabase migration has **not** been performed.
+
+**Impact:** Developers expecting Supabase integration will find Firebase throughout. The boilerplate currently provides a Firebase implementation that must be migrated manually.
 
 ---
 
-## Code Quality Observations
+## HIGH
 
-Based on the project structure and error patterns, here are observations about the boilerplate quality:
+### 2. Firebase Credentials Not Included (By Design)
 
-### Positives
-- **Modern architecture:** Uses Riverpod for state management with code generation (riverpod_generator) - this is current best practice in the Flutter ecosystem
-- **Type safety:** Uses freezed for immutable data classes and sealed unions - reduces runtime errors
-- **Modular structure:** Code is organized into modules (authentication, subscription) with clear separation of UI and business logic
-- **Multiple environments:** Separate Firebase configs for default and dev environments
+**Severity:** High
+**Status:** Expected -- requires per-project setup
 
-### Concerns
-1. **SDK constraint is aggressive:** Requiring Dart ^3.11.0 limits compatibility. Many developers won't have this SDK version yet. The boilerplate should either lower the constraint or clearly document the requirement.
+The following files are listed in `.gitignore` and must be generated before the app can run:
 
-2. **Heavy reliance on code generation:** The project uses freezed, riverpod_generator, json_serializable, and build_runner. This means:
-   - First-time setup is complex (must run build_runner before anything works)
-   - Build times are slower
-   - New developers often get stuck on the "missing .g.dart" errors
+- `lib/firebase_options.dart`
+- `lib/firebase_options_dev.dart`
+- `android/app/google-services.json`
+- `ios/Runner/GoogleService-Info.plist`
 
-3. **Switch exhaustiveness issues in boilerplate code:** The fact that 6 files had non-exhaustive switch statements out of the box suggests the boilerplate was either:
-   - Generated for an older Dart version with different exhaustiveness rules
-   - Not fully tested before distribution
-   - This is a quality issue with the ApparenceKit template itself
+**Fix:** Create a Firebase project, then run:
 
-4. **Firebase credentials in project:** The `firebase_options.dart` files contain API keys and project IDs. While Firebase client-side API keys aren't secret per se, it's still good practice to keep them out of version control via `.gitignore` (which we've now added).
+```
+flutterfire configure
+```
+
+Dev and production environments should point to separate Firebase projects.
+
+### 3. Code Generation Required Before Building
+
+**Severity:** High
+**Status:** Expected -- by design
+
+All `.g.dart` and `.freezed.dart` files are excluded from version control via `.gitignore`. The project will not compile until code generation is run.
+
+**Fix:**
+
+```
+dart run build_runner build --delete-conflicting-outputs
+```
+
+Requires Dart SDK ^3.11.0.
+
+### 4. Force Unwraps Without Null Checks
+
+**Severity:** High
+**Status:** Bug -- potential runtime crashes
+
+Two force-unwrap (`!`) operations in `lib/modules/subscription/repositories/subscription_repository.dart` can throw `Null check operator used on a null value` at runtime:
+
+| Line | Expression |
+|------|------------|
+| 87   | `entity!.skuId` |
+| 166  | `_prefs!.setInt(...)` |
+
+**Impact:** If `entity` or `_prefs` is null when these lines execute, the app will crash with an unhandled exception.
+
+**Fix:** Add null guards or early-return checks before these accesses.
 
 ---
 
-## Recommended Fix Order
+## MEDIUM
 
-1. Move project out of `C:\WINDOWS` (fixes permission errors)
-2. Upgrade Flutter SDK (fixes Dart version blocker)
-3. Apply permanent PATH fixes (fixes CLI availability)
-4. Run `flutter pub get` (resolve dependencies)
-5. Run `dart run build_runner build --delete-conflicting-outputs` (generate code)
-6. Build and check for remaining switch errors
-7. Fix any remaining switch exhaustiveness issues
-8. Run `flutter pub outdated` and update packages
+### 5. Template Placeholder Values Must Be Replaced
+
+**Severity:** Medium
+**Status:** Expected -- requires customization before shipping
+
+The following placeholder values are present and must be changed per-project:
+
+| File | Placeholder | Value |
+|------|-------------|-------|
+| `android/app/src/main/AndroidManifest.xml` | App label | `flutter_base` |
+| `android/app/build.gradle.kts` | Package / Application ID | `com.yourcompany.template` |
+| `android/app/src/main/kotlin/.../MainActivity.kt` | Package declaration | `com.yourcompany.template` |
+| `android/app/src/main/res/values/strings.xml` | Facebook App ID | `000000000000` |
+| `lib/environments.dart` | Terms URL | `''` (empty string) |
+| `lib/environments.dart` | Privacy URL | `''` (empty string) |
+| `lib/core/data/api/user_api.dart` | Firebase region | `us-central1` |
+| `lib/modules/authentication/api/authentication_api.dart` | Firebase region | `us-central1` |
+
+**Impact:** Shipping without replacing these will result in broken deep links, incorrect app naming, a non-functional Facebook login, and empty legal pages.
+
+### 6. Artificial Delays in Auth and Notification Flows
+
+**Severity:** Medium
+**Status:** Intentional -- anti-spam UX pattern
+
+Hardcoded `Future.delayed` calls are present throughout the authentication and notification modules:
+
+- **1500ms** delays in sign-in, sign-up, and password recovery (`signin_state_provider.dart`, `signup_state_provider.dart`, `recover_provider.dart`)
+- **2000ms** delay in phone auth (`phone_auth_notifier.dart`)
+- **500ms** delay in authentication API (`authentication_api.dart`)
+
+**Impact:** These add latency to every auth operation regardless of network speed. They are intended to prevent rapid repeated submissions but may frustrate users on fast connections.
+
+**Fix:** Consider replacing fixed delays with debounce logic or server-side rate limiting.
+
+### 7. Unfinished TODOs in Production Code
+
+**Severity:** Medium
+**Status:** Incomplete implementation
+
+| File | Line | TODO |
+|------|------|------|
+| `lib/main.dart` | 54 | Replace with your own Firebase options for production |
+| `lib/modules/notifications/api/device_api.dart` | 361 | Storage info for Android |
+| `lib/modules/notifications/api/device_api.dart` | 369 | Carrier and storage info |
+| `lib/core/rating/providers/rating_repository.dart` | 27-28 | Get delay values from env |
+| `lib/core/rating/widgets/rate_banner.dart` | 55 | Create factory to get value from env |
+
+---
+
+## LOW
+
+### 8. Thin Test Coverage
+
+**Severity:** Low
+**Status:** Known gap
+
+The `test/` directory contains 34 test files covering happy-path scenarios only. There are:
+
+- No error-case tests (network failures, invalid input, null states)
+- No edge-case tests (boundary values, concurrent operations)
+- No integration tests
+
+**Impact:** Regressions and error-handling bugs are unlikely to be caught before production.
