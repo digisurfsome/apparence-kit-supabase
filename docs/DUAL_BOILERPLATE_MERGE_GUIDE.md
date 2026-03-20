@@ -1,223 +1,144 @@
-# Dual Boilerplate Merge Guide
+# Boilerplate Strategy: Three Repos
 
-## Combining apparence-kit-supabase (Mobile) + Web-BoilerPlate-D2D (Web)
+## The System
 
-This guide explains how to combine both boilerplates into a single monorepo that gives you:
-- **Flutter mobile app** (ApparenceKit — auth, subscriptions, notifications, onboarding, feedback, settings)
-- **Next.js web app** (landing page, dashboard, Stripe checkout)
-- **Shared Supabase backend** (merged schema, edge functions)
-- **Firebase** (push notifications only — required for iOS FCM)
+Three GitHub repos, each independently clonable:
 
----
+| Repo | When to use | What's inside |
+|------|------------|---------------|
+| `apparence-kit-supabase` | Mobile-only app | Flutter + Supabase + Firebase (FCM) + RevenueCat |
+| `Web-BoilerPlate-D2D` | Web-only app | Next.js + Supabase + Stripe + PostHog |
+| `fullstack-boilerplate` | Mobile + Web app | Both merged into one monorepo, shared Supabase |
 
-## Architecture Overview
-
-```
-your-app/
-├── flutter/                 # ApparenceKit mobile app (from apparence-kit-supabase)
-│   ├── lib/
-│   │   ├── core/
-│   │   ├── modules/
-│   │   ├── i18n/
-│   │   └── main.dart
-│   ├── android/
-│   ├── ios/
-│   ├── web/
-│   ├── pubspec.yaml
-│   └── ...
-├── nextjs/                  # Web app + landing page (from Web-BoilerPlate-D2D)
-│   ├── app/
-│   ├── components/
-│   ├── lib/
-│   ├── styles/
-│   ├── package.json
-│   └── ...
-├── supabase/                # Shared backend (MERGED from both)
-│   ├── migrations/
-│   │   ├── 20240717231009_web_init.sql        # Web schema (Stripe)
-│   │   └── 20260320000000_mobile_init.sql     # Mobile schema (ApparenceKit)
-│   │   └── 20260320000001_merge_schemas.sql   # Merge conflict resolution
-│   ├── functions/
-│   │   ├── get_stripe_url/   # From web boilerplate
-│   │   ├── on_user_modify/   # From web boilerplate
-│   │   ├── stripe_webhook/   # From web boilerplate
-│   │   └── _shared/
-│   ├── config.toml
-│   └── seed.sql
-├── .github/workflows/       # CI for both apps
-├── .claude/                 # AI agent instructions
-├── docs/                    # Shared documentation
-├── .env.example             # All env vars for both apps
-└── README.md
-```
+**User flow in your SaaS:**
+1. User enters app name, provides GitHub token
+2. User picks: Mobile / Web / Dual
+3. System clones the correct repo → renames → pushes to user's GitHub
+4. Agent runs setup checklist (env vars, Supabase project, etc.)
 
 ---
 
-## Schema Conflicts & Resolution
+## Why Three Repos (Not Two + Merge Script)
 
-### 1. `users` table — MUST MERGE
-
-**Web boilerplate columns:**
-```sql
-id uuid (PK, refs auth.users)
-full_name text
-avatar_url text
-billing_address jsonb      -- Stripe billing
-payment_method jsonb       -- Stripe payment
-```
-
-**Mobile boilerplate columns:**
-```sql
-id uuid (PK, refs auth.users)
-email text
-name text
-avatar text
-created_at timestamptz
-last_update_date timestamptz
-```
-
-**Merged `users` table:**
-```sql
-create table users (
-  id uuid references auth.users not null primary key,
-  email text,
-  name text,                    -- mobile uses "name", web uses "full_name" — pick one
-  full_name text,               -- OR keep both and sync via trigger
-  avatar_url text,
-  billing_address jsonb,        -- from web (Stripe)
-  payment_method jsonb,         -- from web (Stripe)
-  created_at timestamptz default now(),
-  last_update_date timestamptz default now()
-);
-```
-
-### 2. `subscriptions` table — KEEP BOTH (different purposes)
-
-The web boilerplate uses **Stripe** (subscription IDs like `sub_1234`, linked to prices/products).
-The mobile boilerplate uses **RevenueCat** (SKU-based, app store purchases).
-
-These are fundamentally different payment systems. **Keep both tables:**
-
-| Table | Source | Purpose |
-|-------|--------|---------|
-| `subscriptions` | Web (Stripe) | Web payments, Stripe-synced via webhooks |
-| `mobile_subscriptions` | Mobile (RevenueCat) | In-app purchases, RevenueCat-synced |
-
-OR rename the web one to `stripe_subscriptions` for clarity.
-
-### 3. `handle_new_user()` trigger — MUST MERGE
-
-**Web version:**
-```sql
-insert into public.users (id, full_name, avatar_url)
-values (new.id, new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'avatar_url');
-```
-
-**Mobile version:**
-```sql
-insert into public.users (id, email, name)
-values (new.id, new.email, coalesce(new.raw_user_meta_data->>'name', ''));
-```
-
-**Merged trigger:**
-```sql
-create or replace function public.handle_new_user()
-returns trigger as $$
-begin
-  insert into public.users (id, email, name, full_name, avatar_url, created_at)
-  values (
-    new.id,
-    new.email,
-    coalesce(new.raw_user_meta_data->>'name', new.raw_user_meta_data->>'full_name', ''),
-    new.raw_user_meta_data->>'full_name',
-    new.raw_user_meta_data->>'avatar_url',
-    now()
-  );
-  return new;
-end;
-$$ language plpgsql security definer;
-```
-
-### 4. Tables that DON'T conflict (just add both)
-
-**From web boilerplate only:**
-- `customers` (Stripe customer ID mapping)
-- `products` (Stripe products)
-- `prices` (Stripe prices)
-- `checkout_sessions` (Stripe checkout)
-
-**From mobile boilerplate only:**
-- `notifications` (push notification history)
-- `feature_requests` (admin feature requests)
-- `feature_votes` (user votes)
-- `user_feature_requests` (user-submitted ideas)
-- `user_infos` (onboarding key-value data)
-- `devices` (FCM device tokens)
+- **Reliability**: Clone-and-go. No merge logic to break.
+- **Speed**: Dual app setup is instant, same as mobile or web.
+- **Testability**: The dual repo is a real, tested, working app. Not a runtime merge.
+- **Simplicity**: Your SaaS clone logic is identical for all three cases.
+- **Trade-off**: When you update mobile or web, you also update the dual. Worth it.
 
 ---
 
-## Step-by-Step Merge Process
+## Maintenance Workflow
 
-### Phase 1: Create the monorepo
+```
+You update the mobile boilerplate (apparence-kit-supabase)
+    │
+    ├── 1. Push changes to apparence-kit-supabase
+    └── 2. Port the same changes into fullstack-boilerplate/flutter/
+           (cherry-pick, or just manually apply — it's the same code)
+
+You update the web boilerplate (Web-BoilerPlate-D2D)
+    │
+    ├── 1. Push changes to Web-BoilerPlate-D2D
+    └── 2. Port the same changes into fullstack-boilerplate/nextjs/
+           (same deal)
+
+You update Supabase schema
+    │
+    ├── If mobile-only table → update apparence-kit-supabase + fullstack-boilerplate
+    ├── If web-only table → update Web-BoilerPlate-D2D + fullstack-boilerplate
+    └── If shared table → update all three
+```
+
+This is manageable because:
+- Schema changes are infrequent
+- The changes are the same code, just in different locations
+- An agent can automate this ("sync mobile changes to dual repo")
+
+---
+
+## Creating the Dual Repo (One-Time Setup)
+
+Run this script on a machine with `gh` CLI and git access to both repos.
+
+### `create_dual_repo.sh`
 
 ```bash
-# Create new repo
-mkdir my-app && cd my-app
+#!/bin/bash
+set -euo pipefail
+
+GITHUB_ORG="digisurfsome"
+DUAL_REPO="fullstack-boilerplate"
+MOBILE_REPO="apparence-kit-supabase"
+WEB_REPO="Web-BoilerPlate-D2D"
+
+echo "=== Step 1: Create GitHub repo ==="
+gh repo create "$GITHUB_ORG/$DUAL_REPO" --private \
+  --description "Flutter mobile + Next.js web + Supabase backend — unified boilerplate"
+
+echo "=== Step 2: Clone both source repos ==="
+WORK_DIR=$(mktemp -d)
+cd "$WORK_DIR"
+
+git clone "https://github.com/$GITHUB_ORG/$MOBILE_REPO.git" mobile
+git clone "https://github.com/$GITHUB_ORG/$WEB_REPO.git" web
+
+echo "=== Step 3: Build monorepo structure ==="
+mkdir dual && cd dual
 git init
 
-# Pull in mobile boilerplate as flutter/
-git remote add mobile https://github.com/digisurfsome/apparence-kit-supabase.git
-git fetch mobile main
-git checkout -b main
-# Copy mobile files into flutter/ subdirectory
-git read-tree --prefix=flutter/ -u mobile/main
+# --- Flutter (from mobile boilerplate) ---
+# Copy everything except supabase/ (we'll merge that separately)
+rsync -a --exclude='.git' --exclude='supabase/' ../mobile/ ./flutter/
 
-# Pull in web boilerplate
-git remote add web https://github.com/digisurfsome/Web-BoilerPlate-D2D.git
-git fetch web main
-# Copy nextjs/ and supabase/ from web boilerplate
-git read-tree --prefix=nextjs-tmp/ -u web/main
-# Then manually move: nextjs-tmp/nextjs/ → nextjs/, nextjs-tmp/supabase/ → supabase/
-```
+# --- Next.js (from web boilerplate) ---
+cp -r ../web/nextjs ./nextjs
 
-**Alternative (simpler):**
-```bash
-mkdir my-app && cd my-app
-git init
+# --- Supabase (merged from both) ---
+# Start with web's supabase (has Stripe schema + edge functions)
+cp -r ../web/supabase ./supabase
 
-# Clone both as subdirectories (not git submodules)
-git clone https://github.com/digisurfsome/apparence-kit-supabase.git flutter
-rm -rf flutter/.git
+# Copy mobile migrations (rename to avoid conflicts)
+for f in ../mobile/supabase/migrations/*.sql; do
+  filename=$(basename "$f")
+  # Prefix with "mobile_" if there's a name collision
+  if [ -f "./supabase/migrations/$filename" ]; then
+    cp "$f" "./supabase/migrations/mobile_$filename"
+  else
+    cp "$f" "./supabase/migrations/$filename"
+  fi
+done
 
-git clone https://github.com/digisurfsome/Web-BoilerPlate-D2D.git web-tmp
-cp -r web-tmp/nextjs ./nextjs
-cp -r web-tmp/supabase ./supabase
-cp -r web-tmp/.github ./.github
-rm -rf web-tmp
+# --- CI/CD ---
+mkdir -p .github/workflows
 
-git add -A && git commit -m "Initial monorepo: mobile + web boilerplates"
-```
+# --- Shared config ---
+cp -r ../web/.github/workflows/* .github/workflows/ 2>/dev/null || true
+cp ../web/.env.example .env.example 2>/dev/null || true
 
-### Phase 2: Merge Supabase schemas
+echo "=== Step 4: Create merge migration ==="
+cat > supabase/migrations/99999999999999_merge_schemas.sql << 'MIGRATION_EOF'
+-- ============================================================
+-- MERGE MIGRATION: Resolves conflicts between web and mobile schemas
+-- ============================================================
 
-1. Keep the web migration as-is: `supabase/migrations/20240717231009_init.sql`
-2. Move the mobile migration: copy `flutter/supabase/migrations/20260320000000_initial_schema.sql` → `supabase/migrations/20260320000000_mobile_schema.sql`
-3. Create a merge migration: `supabase/migrations/20260320000001_merge_schemas.sql`
-
-```sql
--- 20260320000001_merge_schemas.sql
--- Resolves conflicts between web and mobile schemas
-
--- 1. Add mobile columns to the users table (web migration created it first)
+-- 1. Extend users table with mobile columns
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email text;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS name text;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_update_date timestamptz DEFAULT now();
 
--- 2. Add missing RLS policies for mobile
-CREATE POLICY "Users can insert own data" ON users FOR INSERT WITH CHECK (auth.uid() = id);
+-- 2. RLS: allow users to insert their own row (mobile needs this)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'users' AND policyname = 'Users can insert own data'
+  ) THEN
+    CREATE POLICY "Users can insert own data" ON users FOR INSERT WITH CHECK (auth.uid() = id);
+  END IF;
+END $$;
 
--- 3. Update handle_new_user to populate all columns
+-- 3. Merged handle_new_user trigger (handles both web and mobile signups)
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
@@ -234,12 +155,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 4. Rename mobile subscriptions table to avoid conflict
--- (The mobile migration should create mobile_subscriptions instead of subscriptions)
--- If already created as "subscriptions", rename:
--- ALTER TABLE subscriptions RENAME TO mobile_subscriptions;
-
--- 5. Update last_update_date trigger
+-- 4. Auto-update last_update_date
 CREATE OR REPLACE FUNCTION update_last_update_date()
 RETURNS trigger AS $$
 BEGIN
@@ -248,57 +164,74 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER update_users_last_update
-  BEFORE UPDATE ON users
-  FOR EACH ROW
-  EXECUTE FUNCTION update_last_update_date();
-```
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger WHERE tgname = 'update_users_last_update'
+  ) THEN
+    CREATE TRIGGER update_users_last_update
+      BEFORE UPDATE ON users
+      FOR EACH ROW
+      EXECUTE FUNCTION update_last_update_date();
+  END IF;
+END $$;
 
-### Phase 3: Merge environment variables
+-- 5. Unified entitlements view (combines Stripe web + RevenueCat mobile)
+CREATE OR REPLACE VIEW user_entitlements AS
+SELECT user_id, 'stripe' AS source, status::text, current_period_end AS expires_at
+FROM subscriptions WHERE status = 'active'
+UNION ALL
+SELECT user_id, 'revenuecat' AS source, status::text, expiration_date AS expires_at
+FROM mobile_subscriptions WHERE status = 'active';
+MIGRATION_EOF
 
-Create a unified `.env.example`:
+echo "=== Step 5: Create unified .env.example ==="
+cat > .env.example << 'ENV_EOF'
+# ========================================
+# Fullstack Boilerplate — Environment Variables
+# ========================================
 
-```bash
-# === Supabase (shared) ===
-SUPABASE_URL=https://your-project.supabase.co
+# --- Supabase (SHARED — both apps use the same project) ---
+SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key  # server-side only
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
-# === Stripe (web only) ===
+# --- Stripe (web) ---
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
 
-# === Firebase (mobile only — for push notifications) ===
-# Generated by flutterfire configure, not stored in .env
+# --- RevenueCat (mobile) ---
+RC_ANDROID_API_KEY=
+RC_IOS_API_KEY=
 
-# === RevenueCat (mobile only — in-app purchases) ===
-RC_ANDROID_API_KEY=...
-RC_IOS_API_KEY=...
+# --- Firebase (mobile — FCM push notifications only) ---
+# Run: cd flutter && flutterfire configure
 
-# === Analytics ===
-NEXT_PUBLIC_POSTHOG_KEY=...       # web
-MIXPANEL_TOKEN=...                 # mobile
+# --- Analytics ---
+NEXT_PUBLIC_POSTHOG_KEY=           # web
+# MIXPANEL_TOKEN configured in flutter/lib/environments.dart
 
-# === Error Reporting ===
-SENTRY_DSN=...                     # mobile
+# --- Error Reporting ---
+# SENTRY_DSN configured in flutter/lib/environments.dart
 
-# === Email (web only) ===
-LOOPS_API_KEY=...
-```
+# --- Email ---
+LOOPS_API_KEY=                     # web transactional emails
+ENV_EOF
 
-### Phase 4: Merge CI/CD
-
-Create `.github/workflows/` with separate jobs:
-
-```yaml
-# .github/workflows/ci.yml
+echo "=== Step 6: Create CI workflow ==="
+cat > .github/workflows/ci.yml << 'CI_EOF'
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
   flutter:
+    name: Flutter (mobile)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -306,12 +239,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
       - run: flutter pub get
       - run: dart run build_runner build --delete-conflicting-outputs
       - run: flutter analyze lib test
       - run: flutter test
 
   nextjs:
+    name: Next.js (web)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -323,147 +259,310 @@ jobs:
           node-version: 20
       - run: npm ci
       - run: npm run build
-```
+CI_EOF
 
-### Phase 5: Update Flutter app to use shared Supabase
+echo "=== Step 7: Create CLAUDE.md for the dual repo ==="
+mkdir -p .claude
+cat > .claude/CLAUDE.md << 'CLAUDE_EOF'
+## Project: Fullstack Boilerplate (Mobile + Web)
 
-In the Flutter app, update the Supabase URL to point to the same project:
-- `flutter/lib/environments.dart` — `BACKEND_URL` points to shared Supabase project
-- The Flutter app's `supabase/` directory can be deleted (migrations live at root `/supabase/`)
+Monorepo with Flutter mobile app + Next.js web app sharing a single Supabase backend.
 
-### Phase 6: Configure shared Supabase project
+### Structure
+- `flutter/` — Flutter mobile app (ApparenceKit architecture: API → Repository → Provider/UI)
+- `nextjs/` — Next.js web app (App Router, TypeScript, Tailwind)
+- `supabase/` — Shared Supabase backend (migrations, edge functions)
 
-```bash
-cd supabase
-supabase link --project-ref YOUR_PROJECT_ID
-supabase db push   # applies all migrations in order
-supabase functions deploy   # deploys edge functions
-```
+### Key rules
+- Both apps share ONE Supabase project. All schema changes go in `supabase/migrations/`.
+- Auth is Supabase Auth for both platforms.
+- Payments: Stripe (web, `subscriptions` table) + RevenueCat (mobile, `mobile_subscriptions` table).
+- Firebase is mobile-only (FCM push notifications).
+- Use `user_entitlements` view to check if a user has an active subscription from either platform.
 
----
+### Flutter conventions
+- Package imports: `import 'package:apparence_kit/...'`
+- State management: Riverpod
+- Routing: go_router
+- Models: Freezed
+- API classes: see `.claude/rules/supabase_api.mdc` in flutter/
 
-## Payment Strategy Decision
+### Next.js conventions
+- TypeScript, Tailwind CSS
+- App Router (not Pages Router)
+- Supabase client via `@supabase/ssr`
 
-You need to decide how payments work across platforms:
+### Commands
+- Flutter: `cd flutter && flutter pub get && dart run build_runner build --delete-conflicting-outputs`
+- Next.js: `cd nextjs && npm ci && npm run build`
+- Supabase: `cd supabase && supabase db push && supabase functions deploy`
+- Tests: `cd flutter && flutter test` / `cd nextjs && npm test`
+CLAUDE_EOF
 
-### Option A: Stripe everywhere (simpler)
-- Web: Stripe Checkout (already set up)
-- Mobile: Stripe in-app (replace RevenueCat with Stripe)
-- Single subscription table, single webhook
-- **Pro:** One payment system, unified billing
-- **Con:** Apple/Google take 30% cut on mobile app store payments; Stripe mobile requires more setup
-
-### Option B: Stripe (web) + RevenueCat (mobile) — dual system
-- Web: Stripe Checkout
-- Mobile: RevenueCat (handles App Store / Play Store billing)
-- Two subscription tables (`subscriptions` for Stripe, `mobile_subscriptions` for RevenueCat)
-- Need a `user_entitlements` view that unifies both
-- **Pro:** Native app store experience on mobile, avoids app store payment policy issues
-- **Con:** Two systems to maintain, need to sync entitlements
-
-### Option C: RevenueCat everywhere
-- RevenueCat supports web via Stripe integration
-- Single entitlement system
-- **Pro:** One system, handles all platforms
-- **Con:** RevenueCat takes a cut, less control over web checkout UX
-
-**Recommendation:** Option B for most apps. Keep Stripe for web (better UX, lower fees) and RevenueCat for mobile (required for App Store compliance). Create a unified entitlements view:
-
-```sql
-CREATE VIEW user_entitlements AS
-SELECT user_id, 'stripe' as source, status, current_period_end
-FROM subscriptions WHERE status = 'active'
-UNION ALL
-SELECT user_id, 'revenuecat' as source, status, expiration_date
-FROM mobile_subscriptions WHERE status = 'active';
-```
-
----
-
-## Creating the Third Repo
-
-To create the combined monorepo on GitHub:
-
-```bash
-# 1. Create repo on GitHub
-gh repo create digisurfsome/fullstack-boilerplate --private --description "Flutter mobile + Next.js web + Supabase backend"
-
-# 2. Clone and set up
-git clone https://github.com/digisurfsome/fullstack-boilerplate.git
-cd fullstack-boilerplate
-
-# 3. Copy in both boilerplates (using the simple method above)
-# ... follow Phase 1 steps ...
-
-# 4. Push
-git push -u origin main
-```
-
-### Automated Setup Script
-
-Create a `setup.sh` in the third repo:
-
-```bash
+echo "=== Step 8: Create setup script ==="
+cat > setup.sh << 'SETUP_EOF'
 #!/bin/bash
-set -e
+set -euo pipefail
 
-echo "=== Fullstack Boilerplate Setup ==="
+echo "========================================"
+echo "  Fullstack Boilerplate Setup"
+echo "========================================"
+echo ""
 
-# Flutter
-echo "Setting up Flutter..."
+# Check prerequisites
+command -v flutter >/dev/null 2>&1 || { echo "ERROR: flutter not found. Install from https://flutter.dev"; exit 1; }
+command -v node >/dev/null 2>&1 || { echo "ERROR: node not found. Install from https://nodejs.org"; exit 1; }
+command -v supabase >/dev/null 2>&1 || { echo "ERROR: supabase CLI not found. Install from https://supabase.com/docs/guides/cli"; exit 1; }
+
+echo "[1/4] Setting up Flutter..."
 cd flutter
 flutter pub get
 dart run build_runner build --delete-conflicting-outputs
 cd ..
 
-# Next.js
-echo "Setting up Next.js..."
+echo "[2/4] Setting up Next.js..."
 cd nextjs
 npm install
 cd ..
 
-# Supabase
-echo "Setting up Supabase..."
+echo "[3/4] Starting Supabase (local)..."
 cd supabase
-supabase start   # local dev
-supabase db push # apply migrations
-supabase functions serve  # start edge functions locally
+supabase start
 cd ..
 
-echo "=== Done! ==="
-echo "Flutter:  cd flutter && flutter run --dart-define=ENV=dev --dart-define=BACKEND_URL=http://127.0.0.1:54321 --dart-define=SUPABASE_TOKEN=<local-anon-key>"
-echo "Next.js:  cd nextjs && npm run dev"
-echo "Supabase: cd supabase && supabase status"
+echo "[4/4] Applying migrations..."
+cd supabase
+supabase db push
+cd ..
+
+echo ""
+echo "========================================"
+echo "  Setup complete!"
+echo "========================================"
+echo ""
+echo "Run the apps:"
+echo "  Flutter:  cd flutter && flutter run"
+echo "  Next.js:  cd nextjs && npm run dev"
+echo "  Supabase: cd supabase && supabase status"
+echo ""
+echo "Next steps:"
+echo "  1. Copy .env.example → .env and fill in your keys"
+echo "  2. Create a Supabase project at https://supabase.com"
+echo "  3. Run 'supabase link --project-ref YOUR_PROJECT_ID'"
+echo "  4. For mobile: run 'cd flutter && flutterfire configure'"
+echo "  5. For web: set up Stripe webhook → your Supabase edge function URL"
+SETUP_EOF
+chmod +x setup.sh
+
+echo "=== Step 9: Remove redundant flutter/supabase/ ==="
+# The Flutter repo has its own supabase/ dir — remove it since we merged into root
+rm -rf flutter/supabase
+
+echo "=== Step 10: Create README ==="
+cat > README.md << 'README_EOF'
+# Fullstack Boilerplate
+
+Flutter mobile app + Next.js web app + shared Supabase backend.
+
+## Quick Start
+
+```bash
+cp .env.example .env
+# Fill in your keys in .env
+./setup.sh
+```
+
+## Structure
+
+```
+├── flutter/    # Mobile app (iOS, Android)
+├── nextjs/     # Web app (landing page, dashboard)
+├── supabase/   # Shared backend (database, auth, edge functions)
+└── setup.sh    # One-command setup
+```
+
+## What You Need
+
+- [ ] Supabase project (URL + anon key)
+- [ ] Stripe account (for web payments)
+- [ ] RevenueCat account (for mobile in-app purchases)
+- [ ] Firebase project (for mobile push notifications only)
+
+## Detailed Guide
+
+See [docs/DUAL_BOILERPLATE_MERGE_GUIDE.md](docs/DUAL_BOILERPLATE_MERGE_GUIDE.md) for the full merge documentation, schema details, and payment strategy options.
+README_EOF
+
+echo "=== Step 11: Commit and push ==="
+git add -A
+git commit -m "Initial dual boilerplate: Flutter mobile + Next.js web + shared Supabase"
+git remote add origin "https://github.com/$GITHUB_ORG/$DUAL_REPO.git"
+git branch -M main
+git push -u origin main
+
+echo ""
+echo "=== DONE ==="
+echo "Repo created at: https://github.com/$GITHUB_ORG/$DUAL_REPO"
+echo ""
+echo "To use as a template for new apps:"
+echo "  gh repo create my-new-app --template $GITHUB_ORG/$DUAL_REPO --private"
 ```
 
 ---
 
-## What Each Agent Needs to Know
+## SaaS Clone Logic (All Three Scenarios)
 
-When an AI agent works on the combined repo, it should understand:
+Your SaaS backend runs one of these depending on user selection:
 
-1. **Flutter code** lives in `flutter/` — uses ApparenceKit architecture (API → Repo → Provider)
-2. **Next.js code** lives in `nextjs/` — uses App Router, TypeScript, Tailwind
-3. **Supabase** lives in `supabase/` — shared by both apps, single source of truth
-4. **Payments** are split: Stripe (web) + RevenueCat (mobile) unless you chose otherwise
-5. **Firebase** is mobile-only, exclusively for push notifications (FCM)
-6. **Auth** is Supabase Auth — shared across web and mobile
-7. **Database changes** require a new migration in `supabase/migrations/`
-8. **Edge functions** are Deno/TypeScript in `supabase/functions/`
+### Mobile only
+```bash
+gh repo create "$USER_ORG/$APP_NAME" --template digisurfsome/apparence-kit-supabase --private
+```
+
+### Web only
+```bash
+gh repo create "$USER_ORG/$APP_NAME" --template digisurfsome/Web-BoilerPlate-D2D --private
+```
+
+### Dual (mobile + web)
+```bash
+gh repo create "$USER_ORG/$APP_NAME" --template digisurfsome/fullstack-boilerplate --private
+```
+
+All three are the same operation: `gh repo create --template`. No merge logic, no scripts, no risk.
 
 ---
 
-## Checklist for New App from Combined Boilerplate
+## Schema Reference: What's Shared, What's Not
 
-- [ ] Create new GitHub repo from this template
-- [ ] Create Supabase project → get URL + anon key
-- [ ] Create Firebase project → `flutterfire configure` (for mobile FCM only)
-- [ ] Create Stripe account → get keys, set up webhooks
-- [ ] Set up RevenueCat → connect to App Store / Play Store
-- [ ] Replace all placeholder values (see README.md "What You Need to Replace")
-- [ ] Run `supabase db push` to apply all migrations
-- [ ] Deploy edge functions: `supabase functions deploy`
-- [ ] Set up PostHog / Mixpanel / Sentry / Loops.so as needed
-- [ ] Update app name, bundle ID, Facebook App ID
-- [ ] Update terms/privacy URLs
-- [ ] Run both apps locally to verify
+### Shared tables (both apps read/write)
+| Table | Purpose |
+|-------|---------|
+| `users` | User profile (merged columns from both) |
+
+### Web-only tables
+| Table | Purpose |
+|-------|---------|
+| `customers` | Stripe customer ID mapping |
+| `products` | Stripe products catalog |
+| `prices` | Stripe pricing |
+| `subscriptions` | Stripe subscriptions |
+| `checkout_sessions` | Stripe checkout tracking |
+
+### Mobile-only tables
+| Table | Purpose |
+|-------|---------|
+| `mobile_subscriptions` | RevenueCat in-app purchases |
+| `notifications` | Push notification history |
+| `devices` | FCM device tokens |
+| `feature_requests` | Admin feature ideas |
+| `feature_votes` | User votes on features |
+| `user_feature_requests` | User-submitted ideas |
+| `user_infos` | Onboarding key-value data |
+
+### Unified views
+| View | Purpose |
+|------|---------|
+| `user_entitlements` | Active subscriptions from either Stripe or RevenueCat |
+
+---
+
+## Schema Conflict Resolution (Reference)
+
+### `users` table — MERGED
+
+Both boilerplates create a `users` table. The dual repo keeps all columns:
+
+```sql
+create table users (
+  id uuid references auth.users not null primary key,
+  email text,                     -- from mobile
+  name text,                      -- from mobile
+  full_name text,                 -- from web
+  avatar_url text,                -- from both (web: avatar_url, mobile: avatar)
+  billing_address jsonb,          -- from web (Stripe)
+  payment_method jsonb,           -- from web (Stripe)
+  created_at timestamptz,         -- from mobile
+  last_update_date timestamptz    -- from mobile
+);
+```
+
+### `handle_new_user()` trigger — MERGED
+
+Single trigger populates all columns regardless of signup source:
+
+```sql
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.users (id, email, name, full_name, avatar_url, created_at)
+  VALUES (
+    new.id,
+    new.email,
+    coalesce(new.raw_user_meta_data->>'name', new.raw_user_meta_data->>'full_name', ''),
+    new.raw_user_meta_data->>'full_name',
+    new.raw_user_meta_data->>'avatar_url',
+    now()
+  );
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+### `subscriptions` — NO CONFLICT (renamed)
+
+- Web subscriptions stay as `subscriptions` (Stripe)
+- Mobile subscriptions become `mobile_subscriptions` (RevenueCat)
+- `user_entitlements` view unifies both
+
+---
+
+## Payment Strategy
+
+**Recommended: Stripe (web) + RevenueCat (mobile)**
+
+- Web users pay via Stripe Checkout → `subscriptions` table
+- Mobile users pay via App Store/Play Store → RevenueCat → `mobile_subscriptions` table
+- Both apps check `user_entitlements` view to see if user has active subscription
+- User who subscribes on one platform is recognized on the other
+
+```sql
+CREATE OR REPLACE VIEW user_entitlements AS
+SELECT user_id, 'stripe' AS source, status::text, current_period_end AS expires_at
+FROM subscriptions WHERE status = 'active'
+UNION ALL
+SELECT user_id, 'revenuecat' AS source, status::text, expiration_date AS expires_at
+FROM mobile_subscriptions WHERE status = 'active';
+```
+
+---
+
+## Agent Checklist: After Cloning Dual Repo for New App
+
+An AI agent setting up a new app from the dual boilerplate should:
+
+1. **Rename the app**
+   - Flutter: update `pubspec.yaml` name, `android/app/build.gradle` applicationId, iOS bundle ID
+   - Next.js: update `package.json` name, page titles
+   - Supabase: update `config.toml` project_id
+
+2. **Create external services**
+   - Supabase project → get URL + keys
+   - Firebase project → `flutterfire configure`
+   - Stripe account → get keys, create webhook
+   - RevenueCat → connect to App Store / Play Store
+
+3. **Configure environment**
+   - Fill `.env` from `.env.example`
+   - Flutter: update `lib/environments.dart`
+   - Next.js: update `.env.local`
+
+4. **Deploy backend**
+   - `supabase link --project-ref <ID>`
+   - `supabase db push`
+   - `supabase functions deploy`
+
+5. **Verify**
+   - `cd flutter && flutter run` — app launches, auth works
+   - `cd nextjs && npm run dev` — landing page loads, Stripe checkout works
+   - Sign up on web → verify user appears in Supabase → sign in on mobile → same user
