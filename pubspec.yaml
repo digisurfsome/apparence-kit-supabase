@@ -72,7 +72,7 @@ dependencies:
   firebase_app_installations: ^0.4.0+6
   firebase_messaging: ^16.1.1
   flutter_timezone: ^5.0.1
-  flutter_local_notifications: ^20.1.0
+  flutter_local_notifications: ^21.0.0
   sentry_flutter: ^9.13.0
   firebase_remote_config: ^6.1.4
   universal_html: ^2.3.0
